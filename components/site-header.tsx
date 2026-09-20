@@ -8,7 +8,7 @@ import {
   SideNavLink,
   SkipToContent,
 } from '@carbon/react'
-import { Activity, Asleep, ChartLine, Light, WarningAlt } from '@carbon/icons-react'
+import { Activity, Asleep, ChartLine, Light, Menu, WarningAlt, WatsonHealthAiStatus } from '@carbon/icons-react'
 import { useTheme } from '@/components/theme-provider'
 import { useEffect, useState } from 'react'
 
@@ -16,6 +16,7 @@ export function SiteHeader() {
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === 'g100'
   const [utcTime, setUtcTime] = useState('00:00:00 UTC')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     const updateClock = () => setUtcTime(`${new Date().toISOString().slice(11, 19)} UTC`)
@@ -35,15 +36,18 @@ export function SiteHeader() {
           <span className="ws-header-badge">System Health: OPTIMAL</span>
           <span className="ws-operator-id">OP ID: 7892-X</span>
         </div>
+        <HeaderGlobalAction aria-label="Toggle navigation" tooltipAlignment="end" onClick={() => setMobileNavOpen((open) => !open)}><Menu size={20} /></HeaderGlobalAction>
         <HeaderGlobalAction aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'} tooltipAlignment="end" onClick={toggleTheme}>
           {isDark ? <Light size={20} /> : <Asleep size={20} />}
         </HeaderGlobalAction>
       </Header>
-      <SideNav aria-label="WellSync AI navigation" expanded className="ws-sidebar">
+      <SideNav aria-label="WellSync AI navigation" expanded className={`ws-sidebar ${mobileNavOpen ? 'ws-sidebar-open' : ''}`}>
         <div className="ws-sidebar-brand">WS<span>•</span></div>
         <SideNavItems>
           <SideNavLink href="/" renderIcon={Activity}>Command center</SideNavLink>
           <SideNavLink href="/wells" renderIcon={ChartLine}>Well fleet</SideNavLink>
+          <SideNavLink href="/analytics" renderIcon={ChartLine}>Analytics</SideNavLink>
+          <SideNavLink href="/copilot" renderIcon={WatsonHealthAiStatus}>AI Copilot</SideNavLink>
           <SideNavLink href="/alerts" renderIcon={WarningAlt}>Incidents</SideNavLink>
         </SideNavItems>
       </SideNav>
