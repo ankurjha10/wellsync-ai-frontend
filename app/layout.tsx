@@ -5,6 +5,7 @@ import { SiteHeader } from '@/components/site-header'
 import './globals.scss'
 import './wellsync.scss'
 import './scada.scss'
+import { DigitalTwinProvider } from '@/components/digital-twin-provider'
 
 export const metadata: Metadata = {
   title: 'WellSync AI | Digital Twin Operations',
@@ -16,8 +17,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <SiteHeader />
-          {children}
+          <DigitalTwinProvider>
+            <SiteHeader />
+            {children}
+          </DigitalTwinProvider>
         </ThemeProvider>
       </body>
     </html>

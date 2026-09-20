@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { Client, type IMessage, type StompSubscription } from '@stomp/stompjs'
-import SockJS from 'sockjs-client'
+import { useMemo, type CSSProperties } from 'react'
 import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   Button,
@@ -11,20 +9,9 @@ import {
   SkeletonPlaceholder,
   Tag,
   Tile,
-  ToastNotification,
 } from '@carbon/react'
 import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt } from '@carbon/icons-react'
-
-type Well = { id: string; name?: string; field?: string; status?: string; location?: string }
-type Telemetry = Record<string, unknown> & { temperature?: number; viscosity?: number; pumpRpm?: number; rodLoad?: number; riskScore?: number; timestamp?: string }
-type AlertItem = { id?: string; severity?: string; message?: string; description?: string; timestamp?: string }
-type Recommendation = { id?: string; title?: string; message?: string; commandType?: string; recommendedValue?: number; unit?: string }
-
-type ChartPoint = { time: string; pumpRpm: number; rodLoad: number }
-type ToastMessage = { id: string; title: string; subtitle: string; caption: string; kind: 'error' | 'info' | 'success' | 'warning' }
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8080/ws'
+import { useDigitalTwin, type Telemetry } from './digital-twin-provider'
 
 function readNumber(data: Telemetry, ...keys: string[]) {
   const value = keys.map((key) => data[key]).find((item) => typeof item === 'number')
@@ -44,87 +31,7 @@ function severityTag(severity?: string) {
 }
 
 export function WellSyncDashboard() {
-  const [wells, setWells] = useState<Well[]>([])
-  const [activeWell, setActiveWell] = useState<Well | null>(null)
-  const [telemetry, setTelemetry] = useState<Telemetry>({})
-  const [chartData, setChartData] = useState<ChartPoint[]>([])
-  const [alerts, setAlerts] = useState<AlertItem[]>([])
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [connection, setConnection] = useState<'connecting' | 'live' | 'offline'>('connecting')
-  const [error, setError] = useState<string | null>(null)
-  const [toasts, setToasts] = useState<ToastMessage[]>([])
-  const clientRef = useRef<Client | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const response = await fetch(`${API_URL}/wells`)
-        if (!response.ok) throw new Error(`Wells request failed (${response.status})`)
-        const list: Well[] = await response.json()
-        if (cancelled) return
-        setWells(list)
-        const well = list[0]
-        if (!well) throw new Error('No wells returned by the API')
-        setActiveWell(well)
-        const stateResponse = await fetch(`${API_URL}/telemetry/state/${well.id}`)
-        if (!stateResponse.ok) throw new Error(`Telemetry request failed (${stateResponse.status})`)
-        const state: Telemetry = await stateResponse.json()
-        if (cancelled) return
-        setTelemetry(state)
-        setChartData([{ time: formatTime(state.timestamp), pumpRpm: readNumber(state, 'pumpRpm', 'pumpRPM'), rodLoad: readNumber(state, 'rodLoad') }])
-      } catch (requestError) {
-        if (!cancelled) {
-          setConnection('offline')
-          setError(requestError instanceof Error ? requestError.message : 'Unable to reach WellSync API')
-        }
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [])
-
-  useEffect(() => {
-    if (!activeWell?.id) return
-    const client = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
-      reconnectDelay: 5000,
-      onConnect: () => {
-        setConnection('live')
-        const receive = (message: IMessage) => {
-          try { return JSON.parse(message.body) } catch { return null }
-        }
-        client.subscribe(`/topic/telemetry/${activeWell.id}`, (message) => {
-          const state = receive(message) as Telemetry | null
-          if (!state) return
-          setTelemetry(state)
-          setChartData((current) => [...current, { time: formatTime(state.timestamp || new Date().toISOString()), pumpRpm: readNumber(state, 'pumpRpm', 'pumpRPM'), rodLoad: readNumber(state, 'rodLoad') }].slice(-30))
-        })
-        client.subscribe(`/topic/alerts/${activeWell.id}`, (message) => {
-          const alert = receive(message) as AlertItem | null
-          if (alert) {
-            setAlerts((current) => [alert, ...current].slice(0, 8))
-            setToasts((current) => [{
-              id: alert.id || Date.now().toString() + Math.random(),
-              title: `Alert: ${alert.severity || 'INFO'}`,
-              subtitle: alert.message || alert.description || 'System alert received',
-              caption: formatTime(alert.timestamp),
-              kind: (alert.severity?.toLowerCase() === 'critical' || alert.severity?.toLowerCase() === 'high') ? 'error' : (alert.severity?.toLowerCase() === 'warning' || alert.severity?.toLowerCase() === 'medium') ? 'warning' : 'info'
-            } as ToastMessage, ...current].slice(0, 3))
-          }
-        })
-        client.subscribe(`/topic/recommendations/${activeWell.id}`, (message) => {
-          const recommendation = receive(message) as Recommendation | null
-          if (recommendation) setRecommendations((current) => [recommendation, ...current].slice(0, 5))
-        })
-      },
-      onWebSocketClose: () => setConnection('offline'),
-      onStompError: () => setConnection('offline'),
-    })
-    clientRef.current = client
-    client.activate()
-    return () => { client.deactivate(); clientRef.current = null }
-  }, [activeWell?.id])
+  const { wells, activeWell, telemetry, chartData, alerts, recommendations, connection, error, executeRecommendation } = useDigitalTwin()
 
   const metrics = useMemo(() => [
     ['Temperature', readNumber(telemetry, 'temperature', 'temperatureC'), '°C'],
@@ -136,33 +43,12 @@ export function WellSyncDashboard() {
     ['Pump Efficiency', 78, '%'],
   ], [telemetry])
 
-  async function executeRecommendation(recommendation: Recommendation) {
-    if (!activeWell?.id) return
-    await fetch(`${API_URL}/control-commands/execute-recommendation`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wellId: activeWell.id, commandType: recommendation.commandType, requestedValue: recommendation.recommendedValue, unit: recommendation.unit }),
-    })
-  }
-
   const isLoadingRegistry = wells.length === 0 && !error
   const pumpRpm = readNumber(telemetry, 'pumpRpm', 'pumpRPM') || 12
   const pumpDuration = `${Math.max(0.8, Math.min(4, 60 / pumpRpm))}s`
 
   return (
     <main id="main-content" className="page-main wellsync-page">
-      <div className="ws-toast-container" style={{ position: 'fixed', top: '4rem', right: '1rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {toasts.map(t => (
-          <ToastNotification
-            key={t.id}
-            kind={t.kind}
-            title={t.title}
-            subtitle={t.subtitle}
-            caption={t.caption}
-            onCloseButtonClick={() => setToasts(current => current.filter(x => x.id !== t.id))}
-            timeout={8000}
-          />
-        ))}
-      </div>
       <div className="ws-shell">
         <Grid condensed className="ws-heading">
           <Column sm={4} md={8} lg={12}>
@@ -171,7 +57,7 @@ export function WellSyncDashboard() {
           </Column>
         </Grid>
         <Grid condensed className="ws-context">
-          <Column sm={4} md={4} lg={4}><span className="ws-label">ACTIVE WELL</span><strong>{activeWell?.name || 'Loading well registry…'}</strong></Column>
+          <Column sm={4} md={4} lg={4}><span className="ws-label">ACTIVE WELL</span><strong>{activeWell?.name || activeWell?.wellName || 'Loading well registry…'}</strong></Column>
           <Column sm={4} md={4} lg={4}><span className="ws-label">FIELD</span><strong>{activeWell?.field || activeWell?.location || '—'}</strong></Column>
           <Column sm={4} md={4} lg={4}><span className="ws-label">ASSET COUNT</span><strong>{wells.length || '—'} connected wells</strong></Column>
         </Grid>
