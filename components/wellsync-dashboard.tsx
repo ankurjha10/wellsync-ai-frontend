@@ -11,6 +11,7 @@ import {
   SkeletonPlaceholder,
   Tag,
   Tile,
+  ToastNotification,
 } from '@carbon/react'
 import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt } from '@carbon/icons-react'
 
@@ -20,8 +21,10 @@ type AlertItem = { id?: string; severity?: string; message?: string; description
 type Recommendation = { id?: string; title?: string; message?: string; commandType?: string; recommendedValue?: number; unit?: string }
 
 type ChartPoint = { time: string; pumpRpm: number; rodLoad: number }
+type ToastMessage = { id: string; title: string; subtitle: string; caption: string; kind: 'error' | 'info' | 'success' | 'warning' }
 
-const API_BASE = 'http://localhost:8080'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8080/ws'
 
 function readNumber(data: Telemetry, ...keys: string[]) {
   const value = keys.map((key) => data[key]).find((item) => typeof item === 'number')
@@ -49,13 +52,14 @@ export function WellSyncDashboard() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [connection, setConnection] = useState<'connecting' | 'live' | 'offline'>('connecting')
   const [error, setError] = useState<string | null>(null)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
   const clientRef = useRef<Client | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const response = await fetch(`${API_BASE}/api/v1/wells`)
+        const response = await fetch(`${API_URL}/wells`)
         if (!response.ok) throw new Error(`Wells request failed (${response.status})`)
         const list: Well[] = await response.json()
         if (cancelled) return
@@ -63,7 +67,7 @@ export function WellSyncDashboard() {
         const well = list[0]
         if (!well) throw new Error('No wells returned by the API')
         setActiveWell(well)
-        const stateResponse = await fetch(`${API_BASE}/api/v1/telemetry/state/${well.id}`)
+        const stateResponse = await fetch(`${API_URL}/telemetry/state/${well.id}`)
         if (!stateResponse.ok) throw new Error(`Telemetry request failed (${stateResponse.status})`)
         const state: Telemetry = await stateResponse.json()
         if (cancelled) return
@@ -83,7 +87,7 @@ export function WellSyncDashboard() {
   useEffect(() => {
     if (!activeWell?.id) return
     const client = new Client({
-      webSocketFactory: () => new SockJS(`${API_BASE}/ws`),
+      webSocketFactory: () => new SockJS(WS_URL),
       reconnectDelay: 5000,
       onConnect: () => {
         setConnection('live')
@@ -98,7 +102,16 @@ export function WellSyncDashboard() {
         })
         client.subscribe(`/topic/alerts/${activeWell.id}`, (message) => {
           const alert = receive(message) as AlertItem | null
-          if (alert) setAlerts((current) => [alert, ...current].slice(0, 8))
+          if (alert) {
+            setAlerts((current) => [alert, ...current].slice(0, 8))
+            setToasts((current) => [{
+              id: alert.id || Date.now().toString() + Math.random(),
+              title: `Alert: ${alert.severity || 'INFO'}`,
+              subtitle: alert.message || alert.description || 'System alert received',
+              caption: formatTime(alert.timestamp),
+              kind: (alert.severity?.toLowerCase() === 'critical' || alert.severity?.toLowerCase() === 'high') ? 'error' : (alert.severity?.toLowerCase() === 'warning' || alert.severity?.toLowerCase() === 'medium') ? 'warning' : 'info'
+            } as ToastMessage, ...current].slice(0, 3))
+          }
         })
         client.subscribe(`/topic/recommendations/${activeWell.id}`, (message) => {
           const recommendation = receive(message) as Recommendation | null
@@ -125,7 +138,7 @@ export function WellSyncDashboard() {
 
   async function executeRecommendation(recommendation: Recommendation) {
     if (!activeWell?.id) return
-    await fetch(`${API_BASE}/api/v1/control-commands/execute-recommendation`, {
+    await fetch(`${API_URL}/control-commands/execute-recommendation`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wellId: activeWell.id, commandType: recommendation.commandType, requestedValue: recommendation.recommendedValue, unit: recommendation.unit }),
     })
@@ -137,6 +150,19 @@ export function WellSyncDashboard() {
 
   return (
     <main id="main-content" className="page-main wellsync-page">
+      <div className="ws-toast-container" style={{ position: 'fixed', top: '4rem', right: '1rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {toasts.map(t => (
+          <ToastNotification
+            key={t.id}
+            kind={t.kind}
+            title={t.title}
+            subtitle={t.subtitle}
+            caption={t.caption}
+            onCloseButtonClick={() => setToasts(current => current.filter(x => x.id !== t.id))}
+            timeout={8000}
+          />
+        ))}
+      </div>
       <div className="ws-shell">
         <Grid condensed className="ws-heading">
           <Column sm={4} md={8} lg={12}>
