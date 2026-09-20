@@ -1,0 +1,8 @@
+import Link from 'next/link'
+import { ArrowLeft, Settings } from '@carbon/icons-react'
+import { Button, Grid, Column, NumberInput, TextInput, Tile, Toggle } from '@carbon/react'
+import '../wellsync.scss'
+
+export default function SettingsPage() {
+  return <main id="main-content" className="page-main wellsync-page"><div className="ws-shell"><Link href="/" className="ws-back"><ArrowLeft size={16}/> Back to command center</Link><Grid condensed className="ws-heading"><Column sm={4} md={8} lg={12}><div className="ws-eyebrow"><Settings size={16}/> DIGITAL TWIN / CONFIGURATION</div><h1>System configuration</h1><p>Manage AI thresholds and edge connectivity for field operations.</p></Column></Grid><Grid condensed className="ws-settings-grid"><Column sm={4} md={4} lg={6}><Tile className="ws-settings-card"><span className="ws-label">AI THRESHOLDS</span><h2>Risk detection</h2><p className="ws-muted">Changes apply to new telemetry evaluations.</p><NumberInput id="temperature-threshold" label="Temperature warning threshold (°C)" value={85} min={0} max={200} /><NumberInput id="risk-threshold" label="Critical risk score" value={80} min={0} max={100} /><Toggle id="ai-recommendations" labelText="AI recommendations" labelA="Off" labelB="On" toggled /></Tile></Column><Column sm={4} md={4} lg={6}><Tile className="ws-settings-card"><span className="ws-label">EDGE CONNECTIVITY</span><h2>Kafka edge node</h2><p className="ws-muted">Configure the broker used by the field gateway.</p><TextInput id="edge-node" labelText="Node endpoint" value="kafka-edge-01.wellsync.local:9092" readOnly /><TextInput id="topic-prefix" labelText="Topic prefix" value="wellsync.telemetry" readOnly /><Button kind="primary">Save configuration</Button></Tile></Column></Grid></div></main>
+}
