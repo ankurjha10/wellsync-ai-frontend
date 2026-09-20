@@ -26,7 +26,7 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<CarbonTheme>('white')
+  const [theme, setTheme] = useState<CarbonTheme>('g100')
 
   useEffect(() => {
     const root = document.documentElement

@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SiteHeader } from '@/components/site-header'
 import './globals.scss'
+import './wellsync.scss'
+import './scada.scss'
 
 export const metadata: Metadata = {
   title: 'WellSync AI | Digital Twin Operations',

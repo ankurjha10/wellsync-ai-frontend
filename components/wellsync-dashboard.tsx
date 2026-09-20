@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Client, type IMessage, type StompSubscription } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -49,6 +49,11 @@ export function WellSyncDashboard() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [connection, setConnection] = useState<'connecting' | 'live' | 'offline'>('connecting')
   const [error, setError] = useState<string | null>(null)
+  const [copilotInput, setCopilotInput] = useState('')
+  const [copilotMessages, setCopilotMessages] = useState([
+    { role: 'operator', text: 'Why is rod floating risk high?' },
+    { role: 'ai', text: 'Rod load variance is elevated against the current pump cycle. I recommend checking fluid level and reducing stroke speed by 5% before the next cycle.' },
+  ])
   const clientRef = useRef<Client | null>(null)
 
   useEffect(() => {
@@ -119,6 +124,8 @@ export function WellSyncDashboard() {
     ['Pump RPM', readNumber(telemetry, 'pumpRpm', 'pumpRPM'), 'rpm'],
     ['Rod Load', readNumber(telemetry, 'rodLoad'), 'kN'],
     ['Risk Score', readNumber(telemetry, 'riskScore'), '/ 100'],
+    ['Production Rate', 450, 'BOPD'],
+    ['Pump Efficiency', 78, '%'],
   ], [telemetry])
 
   async function executeRecommendation(recommendation: Recommendation) {
@@ -130,6 +137,13 @@ export function WellSyncDashboard() {
   }
 
   const isLoadingRegistry = wells.length === 0 && !error
+  function submitCopilot(event: FormEvent) {
+    event.preventDefault()
+    const prompt = copilotInput.trim()
+    if (!prompt) return
+    setCopilotMessages((current) => [...current, { role: 'operator', text: prompt }, { role: 'ai', text: 'I am monitoring the live telemetry stream. Based on the current digital twin state, no additional intervention is required right now.' }])
+    setCopilotInput('')
+  }
 
   return (
     <main id="main-content" className="page-main wellsync-page">
@@ -150,8 +164,9 @@ export function WellSyncDashboard() {
           {isLoadingRegistry ? Array.from({ length: 5 }, (_, index) => <Column key={`metric-skeleton-${index}`} sm={4} md={4} lg={index === 4 ? 4 : 2}><Tile className="ws-metric ws-skeleton-tile"><SkeletonPlaceholder className="ws-metric-skeleton" /></Tile></Column>) : metrics.map(([label, value, unit]) => <Column key={label} sm={4} md={4} lg={label === 'Risk Score' ? 4 : 2}><Tile className="ws-metric"><span className="ws-label">{label}</span><div className="ws-metric-value">{typeof value === 'number' ? value.toFixed(label === 'Risk Score' ? 0 : 1) : value}<small>{unit}</small></div><span className="ws-muted">Live signal</span></Tile></Column>)}
         </Grid>
         <Grid condensed className="ws-main-grid">
-          <Column sm={4} md={8} lg={8}><Tile className="ws-panel ws-chart-panel"><div className="ws-panel-header"><div><span className="ws-label">LIVE TELEMETRY</span><h2>Mechanical performance</h2></div><Tag type="blue">Last 30 readings</Tag></div><div className="ws-legend"><span><i className="ws-blue" /> Pump RPM</span><span><i className="ws-orange" /> Rod Load</span></div>{isLoadingRegistry ? <div className="ws-chart-skeleton"><SkeletonPlaceholder className="ws-chart-skeleton-placeholder" /></div> : <div className="ws-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 12, right: 8, bottom: 4, left: 0 }}><defs><linearGradient id="pumpFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--cds-link-primary)" stopOpacity={0.18}/><stop offset="95%" stopColor="var(--cds-link-primary)" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="var(--cds-border-subtle-01)" vertical={false}/><XAxis dataKey="time" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="left" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ background: 'var(--cds-layer-01)', border: '1px solid var(--cds-border-strong-01)' }}/><Area yAxisId="left" type="monotone" dataKey="pumpRpm" stroke="var(--cds-link-primary)" fill="url(#pumpFill)" strokeWidth={2} dot={false}/><Area yAxisId="right" type="monotone" dataKey="rodLoad" stroke="var(--cds-support-warning)" fill="none" strokeWidth={2} dot={false}/></AreaChart></ResponsiveContainer></div>}</Tile></Column>
-          <Column sm={4} md={8} lg={4}><Tile className="ws-panel ws-feed-panel"><div className="ws-panel-header"><div><span className="ws-label">DECISION SUPPORT</span><h2>Alerts & recommendations</h2></div><Information size={20}/></div><div className="ws-feed">{recommendations.map((item, index) => <div className="ws-feed-item ws-recommendation" key={item.id || `recommendation-${index}`}><div className="ws-feed-heading"><Tag type="purple">AI RECOMMENDATION</Tag><span>{item.title || item.commandType || 'Control action'}</span></div><p>{item.message || `Adjust to ${item.recommendedValue ?? 'recommended'} ${item.unit || ''}`}</p><Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => executeRecommendation(item)}>Execute command</Button></div>)}{alerts.map((item, index) => { const status = severityTag(item.severity); const Icon = status.icon; return <div className="ws-feed-item" key={item.id || `alert-${index}`}><div className="ws-feed-heading"><Tag type={status.type}><Icon size={14} /> {item.severity || 'INFO'}</Tag><span>{formatTime(item.timestamp)}</span></div><p>{item.message || item.description || 'System alert received from the field.'}</p></div> })}{!recommendations.length && !alerts.length && <div className="ws-empty"><CheckmarkFilled size={32} /><p>Systems Nominal - No active alerts</p><span>Live decision support is monitoring this well.</span></div>}</div></Tile></Column>
+          <Column sm={4} md={8} lg={6}><Tile className="ws-panel ws-chart-panel"><div className="ws-panel-header"><div><span className="ws-label">LIVE TELEMETRY</span><h2>Mechanical performance</h2></div><Tag type="blue">Last 30 readings</Tag></div><div className="ws-legend"><span><i className="ws-blue" /> Pump RPM</span><span><i className="ws-orange" /> Rod Load</span></div>{isLoadingRegistry ? <div className="ws-chart-skeleton"><SkeletonPlaceholder className="ws-chart-skeleton-placeholder" /></div> : <div className="ws-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 12, right: 8, bottom: 4, left: 0 }}><defs><linearGradient id="pumpFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--cds-link-primary)" stopOpacity={0.18}/><stop offset="95%" stopColor="var(--cds-link-primary)" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="var(--cds-border-subtle-01)" vertical={false}/><XAxis dataKey="time" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="left" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ background: 'var(--cds-layer-01)', border: '1px solid var(--cds-border-strong-01)' }}/><Area yAxisId="left" type="monotone" dataKey="pumpRpm" stroke="var(--cds-link-primary)" fill="url(#pumpFill)" strokeWidth={2} dot={false}/><Area yAxisId="right" type="monotone" dataKey="rodLoad" stroke="var(--cds-support-warning)" fill="none" strokeWidth={2} dot={false}/></AreaChart></ResponsiveContainer></div>}</Tile></Column>
+          <Column sm={4} md={8} lg={3}><Tile className="ws-panel ws-feed-panel"><div className="ws-panel-header"><div><span className="ws-label">DECISION SUPPORT</span><h2>Alerts & recommendations</h2></div><Information size={20}/></div><div className="ws-feed">{recommendations.map((item, index) => <div className="ws-feed-item ws-recommendation" key={item.id || `recommendation-${index}`}><div className="ws-feed-heading"><Tag type="purple">AI RECOMMENDATION</Tag><span>{item.title || item.commandType || 'Control action'}</span></div><p>{item.message || `Adjust to ${item.recommendedValue ?? 'recommended'} ${item.unit || ''}`}</p><Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => executeRecommendation(item)}>Execute command</Button></div>)}{alerts.map((item, index) => { const status = severityTag(item.severity); const Icon = status.icon; return <div className="ws-feed-item" key={item.id || `alert-${index}`}><div className="ws-feed-heading"><Tag type={status.type}><Icon size={14} /> {item.severity || 'INFO'}</Tag><span>{formatTime(item.timestamp)}</span></div><p>{item.message || item.description || 'System alert received from the field.'}</p></div> })}{!recommendations.length && !alerts.length && <div className="ws-empty"><CheckmarkFilled size={32} /><p>Systems Nominal - No active alerts</p><span>Live decision support is monitoring this well.</span></div>}</div></Tile></Column>
+          <Column sm={4} md={8} lg={3}><Tile className="ws-panel ws-copilot-panel"><div className="ws-panel-header"><div><span className="ws-label">OPERATOR ASSIST</span><h2>AI Copilot</h2></div><Activity size={20} /></div><div className="ws-copilot-messages">{copilotMessages.map((message, index) => <div className={`ws-copilot-message ${message.role}`} key={`${message.role}-${index}`}><span>{message.role === 'ai' ? 'AI' : 'OPERATOR'}</span><p>{message.text}</p></div>)}</div><form className="ws-copilot-form" onSubmit={submitCopilot}><input aria-label="Ask AI Copilot" value={copilotInput} onChange={(event) => setCopilotInput(event.target.value)} placeholder="Ask about well state..." /><Button kind="primary" size="sm" type="submit" aria-label="Send question"><ArrowUpRight size={16} /></Button></form></Tile></Column>
         </Grid>
       </div>
     </main>

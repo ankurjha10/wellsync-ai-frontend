@@ -1,0 +1,37 @@
+@use '@carbon/react/scss/spacing' as spacing;
+@use '@carbon/react/scss/type' as type;
+
+.ws-topbar {
+  background: var(--cds-background);
+  border-bottom: 1px solid var(--cds-border-strong-01);
+}
+.ws-topbar-title {
+  color: var(--cds-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding-left: spacing.$spacing-05;
+}
+.ws-topbar-title span { color: var(--cds-text-secondary); font-size: 11px; margin-left: spacing.$spacing-03; }
+.ws-sidebar { top: 3rem; background: var(--cds-background); border-right: 1px solid var(--cds-border-strong-01); }
+.ws-sidebar-brand { padding: spacing.$spacing-07 spacing.$spacing-05; color: var(--cds-support-success); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.25rem; font-weight: 800; letter-spacing: .12em; }
+.ws-sidebar-brand span { color: var(--cds-support-warning); }
+.ws-sidebar .cds--side-nav__link { border-bottom: 1px solid var(--cds-border-subtle-01); }
+.page-main.wellsync-page { margin-left: 16rem; padding-top: spacing.$spacing-08; background: var(--cds-background); }
+.wellsync-page, .wellsync-page .cds--tile, .wellsync-page .cds--tag { border-radius: 0; }
+.wellsync-page .ws-metric-value, .wellsync-page .ws-label, .wellsync-page .ws-muted, .wellsync-page .ws-status, .wellsync-page .ws-chart, .wellsync-page .ws-copilot-message span { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.wellsync-page .ws-metric-value { color: var(--cds-support-success); letter-spacing: .04em; }
+.wellsync-page .ws-metric:nth-child(5) .ws-metric-value { color: var(--cds-support-warning); }
+.ws-copilot-panel { min-height: 100%; }
+.ws-copilot-messages { flex: 1; display: flex; flex-direction: column; gap: spacing.$spacing-04; padding: spacing.$spacing-05; overflow-y: auto; }
+.ws-copilot-message { border-left: 2px solid var(--cds-border-strong-01); padding-left: spacing.$spacing-03; }
+.ws-copilot-message.ai { border-left-color: var(--cds-support-success); }
+.ws-copilot-message span { color: var(--cds-text-secondary); font-size: 10px; letter-spacing: .08em; }
+.ws-copilot-message p { @include type.type-style('body-compact-01'); color: var(--cds-text-primary); margin: spacing.$spacing-02 0 0; }
+.ws-copilot-form { display: flex; gap: spacing.$spacing-02; padding: spacing.$spacing-04; border-top: 1px solid var(--cds-border-subtle-01); }
+.ws-copilot-form input { min-width: 0; flex: 1; color: var(--cds-text-primary); background: var(--cds-field-01); border: 1px solid var(--cds-border-strong-01); padding: spacing.$spacing-03; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ws-copilot-form input:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+@media (max-width: 1055px) {
+  .page-main.wellsync-page { margin-left: 0; }
+  .ws-sidebar { display: none; }
+}
