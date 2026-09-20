@@ -29,7 +29,7 @@ export function SiteHeader() {
     <>
       <Header aria-label="WellSync AI" className="ws-topbar">
         <SkipToContent />
-        <div className="ws-topbar-title">WellSync AI <span>// SCADA Operator Terminal</span></div>
+        <div className="ws-topbar-title">WellSync AI <span>Operator Terminal</span></div>
         <div className="ws-topbar-status" aria-label="System status">
           <span className="ws-console-clock">{utcTime}</span>
           <span className="ws-header-badge"><i className="ws-header-dot" />Kafka Link: CONNECTED</span>
