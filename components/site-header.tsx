@@ -26,7 +26,6 @@ export function SiteHeader() {
         <HeaderMenuItem href="/">Command center</HeaderMenuItem>
         <HeaderMenuItem href="/wells">Well fleet</HeaderMenuItem>
         <HeaderMenuItem href="/alerts">Incidents</HeaderMenuItem>
-        <HeaderMenuItem href="/settings">Configuration</HeaderMenuItem>
       </HeaderNavigation>
       <HeaderGlobalBar>
         <HeaderGlobalAction
