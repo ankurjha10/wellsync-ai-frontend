@@ -13,6 +13,12 @@
   padding-left: spacing.$spacing-05;
 }
 .ws-topbar-title span { color: var(--cds-text-secondary); font-size: 11px; margin-left: spacing.$spacing-03; }
+.ws-topbar-status { display: flex; align-items: center; gap: spacing.$spacing-03; margin-left: auto; margin-right: spacing.$spacing-03; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; letter-spacing: .04em; white-space: nowrap; position: absolute; right: 3rem; }
+.ws-console-clock { color: var(--cds-support-success); font-size: 12px; font-weight: 700; text-shadow: 0 0 6px color-mix(in srgb, var(--cds-support-success) 55%, transparent); }
+.ws-header-badge, .ws-operator-id { display: inline-flex; align-items: center; gap: spacing.$spacing-02; padding: spacing.$spacing-02 spacing.$spacing-03; border: 1px solid var(--cds-border-strong-01); background: var(--cds-layer-01); color: var(--cds-text-secondary); }
+.ws-header-badge:first-of-type { color: var(--cds-support-success); border-color: color-mix(in srgb, var(--cds-support-success) 50%, var(--cds-border-strong-01)); }
+.ws-header-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cds-support-success); box-shadow: 0 0 7px var(--cds-support-success); animation: pulse-dot 1.5s ease-in-out infinite; }
+.ws-operator-id { color: var(--cds-text-primary); }
 .ws-sidebar { top: 3rem; background: var(--cds-background); border-right: 1px solid var(--cds-border-strong-01); }
 .ws-sidebar-brand { padding: spacing.$spacing-07 spacing.$spacing-05; color: var(--cds-support-success); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.25rem; font-weight: 800; letter-spacing: .12em; }
 .ws-sidebar-brand span { color: var(--cds-support-warning); }
@@ -31,7 +37,27 @@
 .ws-copilot-form { display: flex; gap: spacing.$spacing-02; padding: spacing.$spacing-04; border-top: 1px solid var(--cds-border-subtle-01); }
 .ws-copilot-form input { min-width: 0; flex: 1; color: var(--cds-text-primary); background: var(--cds-field-01); border: 1px solid var(--cds-border-strong-01); padding: spacing.$spacing-03; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .ws-copilot-form input:focus { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+.ws-metrics { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.ws-main-grid { align-items: stretch; }
+@media (min-width: 672px) {
+  .ws-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1056px) {
+  .ws-metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
 @media (max-width: 1055px) {
   .page-main.wellsync-page { margin-left: 0; }
   .ws-sidebar { display: none; }
+}
+@media (max-width: 671px) {
+  .ws-topbar-title { padding-left: spacing.$spacing-03; font-size: 11px; letter-spacing: .04em; }
+  .ws-topbar-title span { display: none; }
+  .ws-topbar-status { gap: spacing.$spacing-02; margin-right: 0; }
+  .ws-header-badge, .ws-operator-id { display: none; }
+  .ws-console-clock { font-size: 10px; }
+
+  .ws-topbar-status { display: none; }
+  .ws-title-row { align-items: flex-start; flex-direction: column; }
+  .ws-context { grid-template-columns: 1fr; }
+  .ws-copilot-messages { min-height: 15rem; }
 }
