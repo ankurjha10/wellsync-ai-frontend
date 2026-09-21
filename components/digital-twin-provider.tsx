@@ -71,15 +71,22 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
         setActiveWell(well)
         const stateResponse = await fetch(`${API_URL}/telemetry/state/${well.id}`)
         if (!stateResponse.ok) throw new Error(`Telemetry request failed (${stateResponse.status})`)
-        const state: Telemetry = await stateResponse.json()
+        const rawState = await stateResponse.json()
         if (cancelled) return
+        const state: Telemetry = {
+          ...rawState,
+          temperature: readNumber(rawState, 'temperature', 'temperatureC'),
+          viscosity: readNumber(rawState, 'viscosity', 'viscosityCp'),
+          pumpRpm: readNumber(rawState, 'pumpRpm', 'pumpRPM', 'rpm'),
+          rodLoad: readNumber(rawState, 'rodLoad', 'rodLoadLbs'),
+        }
         setTelemetry(state)
         setChartData([{ 
           time: formatTime(state.timestamp), 
-          pumpRpm: readNumber(state, 'pumpRpm', 'pumpRPM'), 
-          rodLoad: readNumber(state, 'rodLoad'),
-          temperature: readNumber(state, 'temperature', 'temperatureC'),
-          viscosity: readNumber(state, 'viscosity'),
+          pumpRpm: state.pumpRpm || 0, 
+          rodLoad: state.rodLoad || 0,
+          temperature: state.temperature || 0,
+          viscosity: state.viscosity || 0,
           risk: readNumber(state, 'riskScore')
         }])
       } catch (requestError) {
@@ -104,15 +111,22 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
           try { return JSON.parse(message.body) } catch { return null }
         }
         client.subscribe(`/topic/telemetry/${activeWell.id}`, (message) => {
-          const state = receive(message) as Telemetry | null
-          if (!state) return
+          const raw = receive(message)
+          if (!raw) return
+          const state: Telemetry = {
+            ...raw,
+            temperature: readNumber(raw, 'temperature', 'temperatureC'),
+            viscosity: readNumber(raw, 'viscosity', 'viscosityCp'),
+            pumpRpm: readNumber(raw, 'pumpRpm', 'pumpRPM', 'rpm'),
+            rodLoad: readNumber(raw, 'rodLoad', 'rodLoadLbs'),
+          }
           setTelemetry(state)
           setChartData((current) => [...current, { 
             time: formatTime(state.timestamp || new Date().toISOString()), 
-            pumpRpm: readNumber(state, 'pumpRpm', 'pumpRPM'), 
-            rodLoad: readNumber(state, 'rodLoad'),
-            temperature: readNumber(state, 'temperature', 'temperatureC'),
-            viscosity: readNumber(state, 'viscosity'),
+            pumpRpm: state.pumpRpm || 0, 
+            rodLoad: state.rodLoad || 0,
+            temperature: state.temperature || 0,
+            viscosity: state.viscosity || 0,
             risk: readNumber(state, 'riskScore')
           }].slice(-30))
         })

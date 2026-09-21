@@ -8,12 +8,14 @@ import {
   SideNavLink,
   SkipToContent,
 } from '@carbon/react'
-import { Activity, Asleep, ChartLine, Light, Menu, WarningAlt, WatsonHealthAiStatus } from '@carbon/icons-react'
+import { Activity, Asleep, ChartLine, Light, Menu, WarningAlt, WatsonHealthAiStatus, VirtualMachine } from '@carbon/icons-react'
 import { useTheme } from '@/components/theme-provider'
+import { useDigitalTwin } from '@/components/digital-twin-provider'
 import { useEffect, useState } from 'react'
 
 export function SiteHeader() {
   const { theme, toggleTheme } = useTheme()
+  const { activeWell } = useDigitalTwin()
   const isDark = theme === 'g100'
   const [utcTime, setUtcTime] = useState('00:00:00 UTC')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -46,6 +48,7 @@ export function SiteHeader() {
         <SideNavItems>
           <SideNavLink href="/" renderIcon={Activity}>Command center</SideNavLink>
           <SideNavLink href="/wells" renderIcon={ChartLine}>Well fleet</SideNavLink>
+          <SideNavLink href={activeWell?.id ? `/wells/${activeWell.id}/schematic` : '/wells'} renderIcon={VirtualMachine}>Pump Schematic</SideNavLink>
           <SideNavLink href="/analytics" renderIcon={ChartLine}>Analytics</SideNavLink>
           <SideNavLink href="/copilot" renderIcon={WatsonHealthAiStatus}>AI Copilot</SideNavLink>
           <SideNavLink href="/alerts" renderIcon={WarningAlt}>Incidents</SideNavLink>
