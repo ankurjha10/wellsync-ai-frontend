@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, use } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from '@carbon/icons-react'
 import { Grid, Column, Tile, Tag } from '@carbon/react'
@@ -12,10 +12,11 @@ function readNumber(data: Telemetry, ...keys: string[]) {
   return typeof value === 'number' ? value : 0
 }
 
-export default function WellSchematicPage({ params }: { params: { id: string } }) {
+export default function WellSchematicPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const { wells, activeWell, telemetry, connection } = useDigitalTwin()
 
-  const well = wells.find(w => w.id === params.id) || activeWell
+  const well = wells.find(w => w.id === id) || activeWell
 
   const fluidLevel = readNumber(telemetry, 'fluidLevel') || 1250;
   const thp = readNumber(telemetry, 'thp') || 45;
@@ -45,7 +46,7 @@ export default function WellSchematicPage({ params }: { params: { id: string } }
             <div className="ws-eyebrow">DIGITAL TWIN / SCHEMATIC</div>
             <div className="ws-title-row">
               <div>
-                <h1>{well?.name || well?.wellName || `Well ${params.id}`} Detailed Schematic</h1>
+                <h1>{well?.name || well?.wellName || `Well ${id}`} Detailed Schematic</h1>
                 <p>Live subsurface view and comprehensive metrics.</p>
               </div>
               <div className="ws-status">
