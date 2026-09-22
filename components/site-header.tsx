@@ -16,13 +16,16 @@ import { useEffect, useState } from 'react'
 
 export function SiteHeader() {
   const { theme, toggleTheme } = useTheme()
-  const { activeWell } = useDigitalTwin()
+  const { activeWell, connection } = useDigitalTwin()
   const isDark = theme === 'g100'
-  const [utcTime, setUtcTime] = useState('00:00:00 UTC')
+  const [localTime, setLocalTime] = useState('00:00:00 IST')
   const [isNavExpanded, setIsNavExpanded] = useState(true)
 
   useEffect(() => {
-    const updateClock = () => setUtcTime(`${new Date().toISOString().slice(11, 19)} UTC`)
+    const updateClock = () => {
+      const timeStr = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true })
+      setLocalTime(`${timeStr} IST`)
+    }
     updateClock()
     const timer = window.setInterval(updateClock, 1000)
     return () => window.clearInterval(timer)
@@ -42,8 +45,8 @@ export function SiteHeader() {
         <SkipToContent />
         <div className="ws-topbar-title">WellSync AI <span>Operator Terminal</span></div>
         <div className="ws-topbar-status" aria-label="System status">
-          <span className="ws-console-clock">{utcTime}</span>
-          <span className="ws-header-badge"><i className="ws-header-dot" />Kafka Link: CONNECTED</span>
+          <span className="ws-console-clock">{localTime}</span>
+          <span className="ws-header-badge"><i className="ws-header-dot" style={{ backgroundColor: connection === 'live' ? 'var(--cds-support-success)' : 'var(--cds-support-error)', boxShadow: connection === 'live' ? '0 0 7px var(--cds-support-success)' : 'none', animation: connection === 'live' ? 'pulse-dot 1.5s ease-in-out infinite' : 'none' }} />Kafka Link: {connection === 'live' ? 'CONNECTED' : connection.toUpperCase()}</span>
           <span className="ws-header-badge">System Health: OPTIMAL</span>
           <span className="ws-operator-id">OP ID: 7892-X</span>
         </div>

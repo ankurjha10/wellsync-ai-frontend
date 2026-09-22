@@ -19,7 +19,7 @@ export function PumpSchematic({
   const pumpDuration = `${Math.max(0.8, Math.min(4, 60 / pumpRpm))}s`;
 
   return (
-    <svg style={{ width: '100%', height: '100%', maxHeight: '100%' }} viewBox="0 0 520 460" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg style={{ width: '100%', height: '100%', maxHeight: '100%' }} viewBox="0 0 520 480" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="casingGrad" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="var(--cds-border-strong-01)" />
@@ -69,12 +69,12 @@ export function PumpSchematic({
       <rect x="20" y="113" width="480" height="340" fill="var(--cds-layer-01)" fillOpacity="0.6" rx="8" />
 
       {/* Heavy Oil Reservoir Zone */}
-      <rect x="40" y="380" width="440" height="65" fill="var(--cds-support-warning)" fillOpacity="0.05" stroke="var(--cds-support-warning)" strokeOpacity="0.2" strokeDasharray="4 3" rx="4" />
+      <rect x="40" y="380" width="440" height="75" fill="var(--cds-support-warning)" fillOpacity="0.05" stroke="var(--cds-support-warning)" strokeOpacity="0.2" strokeDasharray="4 3" rx="4" />
       <ellipse cx="260" cy="412" rx="140" ry="26" fill="url(#steamHeatGrad)" />
-      <text x="70" y="400" fill="var(--cds-support-warning)" fontSize="10" fontWeight="700" letterSpacing="0.8">
+      <text x="260" y="425" textAnchor="middle" fill="var(--cds-support-warning)" fontSize="10" fontWeight="700" letterSpacing="0.8">
         JODHPUR FORMATION (PAYZONE DEPTH 2,847m)
       </text>
-      <text x="70" y="415" fill="var(--cds-text-secondary)" fontSize="9" fontFamily="var(--cds-font-family-mono, monospace)">
+      <text x="260" y="440" textAnchor="middle" fill="var(--cds-text-secondary)" fontSize="9" fontFamily="var(--cds-font-family-mono, monospace)">
         P_res: {porePressure} bar · Viscosity: 32 cP (Steam Front Heated)
       </text>
 
@@ -99,7 +99,7 @@ export function PumpSchematic({
       {/* Subsurface SRP Pump Barrel */}
       <rect x="245" y="380" width="30" height="25" fill="var(--cds-layer-03)" stroke="var(--cds-link-primary)" strokeWidth="1.5" rx="2" />
       <circle className="anim-rod" cx="260" cy="392" r="4" fill={isPound ? 'var(--cds-support-error)' : 'var(--cds-support-success)'} filter="url(#glowEffect)" />
-      <text x="260" y="372" textAnchor="middle" fill="var(--cds-text-secondary)" fontSize="8" fontFamily="var(--cds-font-family-mono, monospace)">
+      <text x="235" y="395" textAnchor="end" fill="var(--cds-text-secondary)" fontSize="8" fontFamily="var(--cds-font-family-mono, monospace)">
         SRP PUMP BARREL
       </text>
 

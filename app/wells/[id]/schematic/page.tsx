@@ -56,7 +56,7 @@ export default function WellSchematicPage({ params }: { params: Promise<{ id: st
           </Column>
         </Grid>
 
-        <Grid style={{ marginTop: '0.5rem', height: 'calc(100vh - 9rem)' }}>
+        <Grid style={{ marginTop: '0.5rem', height: 'calc(100vh - 11rem)' }}>
           {/* Column 1: Detailed Metrics */}
           <Column sm={4} md={4} lg={4} style={{ height: '100%' }}>
             <Tile className="ws-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
