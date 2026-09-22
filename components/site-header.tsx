@@ -9,7 +9,7 @@ import {
   SideNavLink,
   SkipToContent,
 } from '@carbon/react'
-import { Activity, Asleep, ChartLine, Light, Menu, WarningAlt, WatsonHealthAiStatus, VirtualMachine } from '@carbon/icons-react'
+import { Activity, Asleep, ChartLine, Light, Menu, WarningAlt, WatsonHealthAiStatus, VirtualMachine, SettingsAdjust } from '@carbon/icons-react'
 import { useTheme } from '@/components/theme-provider'
 import { useDigitalTwin } from '@/components/digital-twin-provider'
 import { useEffect, useState } from 'react'
@@ -72,6 +72,7 @@ export function SiteHeader() {
           <SideNavLink href="/" renderIcon={Activity} isActive={pathname === '/'}>Command center</SideNavLink>
           <SideNavLink href="/wells" renderIcon={ChartLine} isActive={pathname === '/wells'}>Well fleet</SideNavLink>
           <SideNavLink href={activeWell?.id ? `/wells/${activeWell.id}/digital-twin` : '/wells'} renderIcon={VirtualMachine} isActive={pathname?.includes('/digital-twin')}>Digital Twin</SideNavLink>
+          <SideNavLink href="/manual-control" renderIcon={SettingsAdjust} isActive={pathname === '/manual-control'}>Manual Control</SideNavLink>
           <SideNavLink href="/performance" renderIcon={ChartLine} isActive={pathname?.startsWith('/performance')}>Performance Analytics</SideNavLink>
           <SideNavLink href="/ai-advisor" renderIcon={WatsonHealthAiStatus} isActive={pathname?.startsWith('/ai-advisor')}>AI Advisor</SideNavLink>
           <SideNavLink href="/incidents" renderIcon={WarningAlt} isActive={pathname?.startsWith('/incidents')}>Incidents & Alarms</SideNavLink>
