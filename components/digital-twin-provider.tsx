@@ -167,6 +167,7 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
         client.subscribe(`/topic/telemetry/${activeWell.id}`, (message) => {
           lastTelemetryTime.current = Date.now()
           setConnection('live')
+          setError(null)
           const raw = receive(message)
           if (!raw) return
           const state: Telemetry = {
