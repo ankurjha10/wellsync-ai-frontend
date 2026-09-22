@@ -14,6 +14,8 @@ import {
   InlineNotification
 } from '@carbon/react'
 import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt, Idea } from '@carbon/icons-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useDigitalTwin, type Telemetry, type Recommendation, type Well, type AlertItem } from './digital-twin-provider'
 import { PumpSchematic } from './pump-schematic'
 
@@ -41,8 +43,8 @@ export function WellSyncDashboard() {
   const [confirmingCommand, setConfirmingCommand] = useState<Recommendation | null>(null)
   
   // AI Explanation State
-  const [explainingAlertId, setExplainingAlertId] = useState<string | null>(null)
-  const [alertExplanation, setAlertExplanation] = useState<{alert: AlertItem, explanation: string} | null>(null)
+  const [explainingId, setExplainingId] = useState<string | null>(null)
+  const [explanation, setExplanation] = useState<{title: string, message: string, explanation: string, isAlert: boolean} | null>(null)
 
   const metrics = useMemo(() => [
     ['Temperature', readNumber(telemetry, 'temperature', 'temperatureC'), '°C'],
@@ -60,17 +62,33 @@ export function WellSyncDashboard() {
 
   async function handleExplainAlert(alert: AlertItem) {
     if (!alert.id) return
-    setExplainingAlertId(alert.id)
+    setExplainingId(alert.id)
     try {
       const response = await fetch(`${API_URL}/copilot/explain-alert/${alert.id}`)
       if (!response.ok) throw new Error('Failed to fetch explanation')
       const data = await response.json()
       const explanationText = typeof data === 'string' ? data : (data.response || data.explanation || data.message || 'No explanation available.')
-      setAlertExplanation({ alert, explanation: explanationText })
+      setExplanation({ title: alert.severity || 'INFO', message: alert.message || '', explanation: explanationText, isAlert: true })
     } catch (err) {
-      setAlertExplanation({ alert, explanation: 'Failed to retrieve AI explanation. The service might be temporarily unavailable.' })
+      setExplanation({ title: alert.severity || 'INFO', message: alert.message || '', explanation: 'Failed to retrieve AI explanation. The service might be temporarily unavailable.', isAlert: true })
     } finally {
-      setExplainingAlertId(null)
+      setExplainingId(null)
+    }
+  }
+
+  async function handleExplainRecommendation(rec: Recommendation) {
+    if (!rec.id) return
+    setExplainingId(rec.id)
+    try {
+      const response = await fetch(`${API_URL}/copilot/explain-recommendation/${rec.id}`)
+      if (!response.ok) throw new Error('Failed to fetch explanation')
+      const data = await response.json()
+      const explanationText = typeof data === 'string' ? data : (data.response || data.explanation || data.message || 'No explanation available.')
+      setExplanation({ title: 'AI RECOMMENDATION', message: rec.message || rec.title || '', explanation: explanationText, isAlert: false })
+    } catch (err) {
+      setExplanation({ title: 'AI RECOMMENDATION', message: rec.message || rec.title || '', explanation: 'Failed to retrieve AI explanation. The service might be temporarily unavailable.', isAlert: false })
+    } finally {
+      setExplainingId(null)
     }
   }
 
@@ -124,7 +142,20 @@ export function WellSyncDashboard() {
                       <span>{item.title || item.commandType || 'Control action'}</span>
                     </div>
                     <p>{item.message || `Adjust to ${item.recommendedValue ?? 'recommended'} ${item.unit || ''}`}</p>
-                    <Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => setConfirmingCommand(item)}>Execute command</Button>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => setConfirmingCommand(item)}>Execute command</Button>
+                      {item.id && (
+                        <Button 
+                          size="sm" 
+                          kind="ghost" 
+                          renderIcon={Idea} 
+                          onClick={() => handleExplainRecommendation(item)}
+                          disabled={explainingId === item.id}
+                        >
+                          {explainingId === item.id ? 'Thinking...' : 'AI Explain'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 {alerts.map((item, index) => { 
@@ -143,9 +174,9 @@ export function WellSyncDashboard() {
                            kind="ghost" 
                            renderIcon={Idea} 
                            onClick={() => handleExplainAlert(item)}
-                           disabled={explainingAlertId === item.id}
+                           disabled={explainingId === item.id}
                          >
-                           {explainingAlertId === item.id ? 'Thinking...' : 'AI Explain'}
+                           {explainingId === item.id ? 'Thinking...' : 'AI Explain'}
                          </Button>
                       )}
                     </div> 
@@ -166,19 +197,19 @@ export function WellSyncDashboard() {
       
       {/* AI Explanation Modal */}
       <Modal
-        open={!!alertExplanation}
-        onRequestClose={() => setAlertExplanation(null)}
+        open={!!explanation}
+        onRequestClose={() => setExplanation(null)}
         passiveModal
         modalHeading="AI Root Cause Analysis"
       >
-        {alertExplanation && (
+        {explanation && (
           <div style={{ paddingBottom: '1rem' }}>
             <div style={{ marginBottom: '1.5rem' }}>
-              <Tag type={severityTag(alertExplanation.alert.severity).type}>
-                {alertExplanation.alert.severity || 'INFO'}
+              <Tag type={explanation.isAlert ? severityTag(explanation.title).type : 'purple'}>
+                {explanation.title}
               </Tag>
               <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>
-                {alertExplanation.alert.message || alertExplanation.alert.description}
+                {explanation.message}
               </span>
             </div>
             
@@ -186,9 +217,9 @@ export function WellSyncDashboard() {
               <h4 style={{ marginBottom: '1rem', color: '#8a3ffc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Idea size={20} /> AI Explanation
               </h4>
-              <p style={{ color: 'var(--cds-text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                {alertExplanation.explanation}
-              </p>
+              <div className="markdown-response" style={{ color: 'var(--cds-text-secondary)' }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{explanation.explanation}</ReactMarkdown>
+              </div>
             </div>
           </div>
         )}
