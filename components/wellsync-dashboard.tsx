@@ -11,6 +11,7 @@ import {
   Tile,
   Dropdown,
   Modal,
+  InlineNotification
 } from '@carbon/react'
 import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt } from '@carbon/icons-react'
 import { useDigitalTwin, type Telemetry, type Recommendation, type Well } from './digital-twin-provider'
@@ -110,21 +111,37 @@ export function WellSyncDashboard() {
       >
         {confirmingCommand && (
           <div style={{ paddingBottom: '1rem' }}>
-            <p style={{ marginBottom: '1rem' }}>Are you sure you want to execute the following AI recommendation?</p>
-            <Tile className="ws-panel" style={{ borderLeft: '4px solid var(--cds-link-primary)' }}>
-              <strong>{confirmingCommand.title}</strong>
-              <p style={{ marginTop: '0.5rem', marginBottom: '1rem', color: 'var(--cds-text-secondary)' }}>
+            <p style={{ marginBottom: '1.5rem' }}>Are you sure you want to execute the following AI recommendation?</p>
+            
+            <div style={{ padding: '1rem', backgroundColor: 'var(--cds-layer-01)', border: '1px solid var(--cds-border-subtle-01)', marginBottom: '1.5rem' }}>
+              <h4 style={{ marginBottom: '0.5rem' }}>{confirmingCommand.title}</h4>
+              <p style={{ color: 'var(--cds-text-secondary)', marginBottom: '1.5rem' }}>
                 {confirmingCommand.message}
               </p>
-              <Tag type="purple">COMMAND: {confirmingCommand.commandType}</Tag>
-              {confirmingCommand.recommendedValue !== undefined && (
-                <Tag type="blue">TARGET VALUE: {confirmingCommand.recommendedValue} {confirmingCommand.unit || ''}</Tag>
-              )}
-            </Tile>
-            <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--cds-support-warning)' }}>
-              <WarningAlt size={20} />
-              <p><strong>Warning:</strong> This action will directly overwrite the physical setpoints on the remote asset's PLC. Ensure field safety protocols are met before proceeding.</p>
+              
+              <div style={{ display: 'flex', gap: '3rem', borderTop: '1px solid var(--cds-border-subtle-01)', paddingTop: '1rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Command Type</span>
+                  <div style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: '0.25rem' }}>{confirmingCommand.commandType}</div>
+                </div>
+                {confirmingCommand.recommendedValue !== undefined && (
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Target Value</span>
+                    <div style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: '0.25rem', color: 'var(--cds-link-primary)' }}>
+                      {confirmingCommand.recommendedValue} {confirmingCommand.unit || ''}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+
+            <InlineNotification
+              kind="warning"
+              title="SCADA Safety Warning:"
+              subtitle="This action will directly overwrite the physical setpoints on the remote asset's PLC. Ensure field safety protocols are met before proceeding."
+              hideCloseButton
+              style={{ maxWidth: '100%' }}
+            />
           </div>
         )}
       </Modal>

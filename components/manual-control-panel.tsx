@@ -9,13 +9,14 @@ import {
   Dropdown,
   Modal,
   Slider,
-  Tag
+  Tag,
+  InlineNotification
 } from '@carbon/react'
-import { Activity, WarningAlt, StopFilledAlt, VirtualMachine } from '@carbon/icons-react'
+import { Activity, WarningAlt, StopFilledAlt, VirtualMachine, PlayFilledAlt } from '@carbon/icons-react'
 import { useDigitalTwin, type Well, type Recommendation } from './digital-twin-provider'
 
 export function ManualControlPanel() {
-  const { wells, activeWell, setActiveWell, executeRecommendation } = useDigitalTwin()
+  const { wells, activeWell, setActiveWell, executeRecommendation, telemetry } = useDigitalTwin()
   const [confirmingCommand, setConfirmingCommand] = useState<Recommendation | null>(null)
   
   const [rpmValue, setRpmValue] = useState(8)
@@ -40,6 +41,18 @@ export function ManualControlPanel() {
       unit: ''
     })
   }
+
+  const handleStartPump = () => {
+    setConfirmingCommand({
+      title: `START PUMP`,
+      message: `Operator requested to restart the pump to normal operation.`,
+      commandType: 'START_PUMP',
+      recommendedValue: 6,
+      unit: 'RPM'
+    })
+  }
+
+  const isStopped = telemetry?.pumpRpm === 0
 
   return (
     <main id="main-content" className="page-main wellsync-page">
@@ -75,9 +88,9 @@ export function ManualControlPanel() {
           </Column>
         </Grid>
 
-        <Grid condensed>
-          <Column sm={4} md={8} lg={8}>
-            <Tile className="ws-panel" style={{ marginBottom: '1rem', paddingBottom: '2rem' }}>
+        <Grid>
+          <Column sm={4} md={8} lg={11}>
+            <Tile className="ws-panel" style={{ marginBottom: '2rem', padding: '1.5rem 1.5rem 2.5rem' }}>
               <div className="ws-panel-header" style={{ marginBottom: '2rem' }}>
                 <div>
                   <span className="ws-label">PUMP MECHANICS</span>
@@ -95,13 +108,15 @@ export function ManualControlPanel() {
                   onChange={(e) => setRpmValue(e.value)}
                   style={{ marginBottom: '2rem' }}
                 />
-                <Button onClick={() => handleManualCommand('SET_RPM', rpmValue, 'RPM')}>
-                  Transmit RPM Setpoint
-                </Button>
+                <div style={{ marginTop: '2.5rem' }}>
+                  <Button onClick={() => handleManualCommand('SET_RPM', rpmValue, 'RPM')}>
+                    Transmit RPM Setpoint
+                  </Button>
+                </div>
               </div>
             </Tile>
 
-            <Tile className="ws-panel" style={{ paddingBottom: '2rem' }}>
+            <Tile className="ws-panel" style={{ padding: '1.5rem 1.5rem 2.5rem' }}>
               <div className="ws-panel-header" style={{ marginBottom: '2rem' }}>
                 <div>
                   <span className="ws-label">THERMAL INJECTION</span>
@@ -119,15 +134,17 @@ export function ManualControlPanel() {
                   onChange={(e) => setSteamValue(e.value)}
                   style={{ marginBottom: '2rem' }}
                 />
-                <Button onClick={() => handleManualCommand('SET_STEAM_RATE', steamValue, 'bbl/d')}>
-                  Transmit Steam Setpoint
-                </Button>
+                <div style={{ marginTop: '2.5rem' }}>
+                  <Button onClick={() => handleManualCommand('SET_STEAM_RATE', steamValue, 'bbl/d')}>
+                    Transmit Steam Setpoint
+                  </Button>
+                </div>
               </div>
             </Tile>
           </Column>
 
-          <Column sm={4} md={8} lg={4}>
-            <Tile className="ws-panel" style={{ borderLeft: '4px solid var(--cds-support-error)', height: '100%' }}>
+          <Column sm={4} md={8} lg={5}>
+            <Tile className="ws-panel" style={{ borderLeft: '4px solid var(--cds-support-error)', padding: '1.5rem' }}>
               <div className="ws-panel-header">
                 <div>
                   <span className="ws-label" style={{ color: 'var(--cds-support-error)' }}>CRITICAL</span>
@@ -137,11 +154,19 @@ export function ManualControlPanel() {
               </div>
               <div style={{ marginTop: '2rem' }}>
                 <p style={{ marginBottom: '1.5rem', color: 'var(--cds-text-secondary)' }}>
-                  Initiates an immediate shutdown sequence on the remote asset. Use only in case of catastrophic failure, fire, or severe environmental risk.
+                  {isStopped 
+                    ? "The pump asset is currently shut down. Use the restart button to bring it back online to base RPM."
+                    : "Initiates an immediate shutdown sequence on the remote asset. Use only in case of catastrophic failure, fire, or severe environmental risk."}
                 </p>
-                <Button kind="danger" renderIcon={StopFilledAlt} onClick={handleEmergencyStop} style={{ width: '100%', maxWidth: 'none' }}>
-                  EMERGENCY STOP (E-STOP)
-                </Button>
+                {isStopped ? (
+                  <Button kind="primary" renderIcon={PlayFilledAlt} onClick={handleStartPump} style={{ width: '100%', maxWidth: 'none' }}>
+                    RESTART PUMP
+                  </Button>
+                ) : (
+                  <Button kind="danger" renderIcon={StopFilledAlt} onClick={handleEmergencyStop} style={{ width: '100%', maxWidth: 'none' }}>
+                    EMERGENCY STOP (E-STOP)
+                  </Button>
+                )}
               </div>
             </Tile>
           </Column>
@@ -164,21 +189,39 @@ export function ManualControlPanel() {
       >
         {confirmingCommand && (
           <div style={{ paddingBottom: '1rem' }}>
-            <p style={{ marginBottom: '1rem' }}>Are you sure you want to execute the following manual control action?</p>
-            <Tile className="ws-panel" style={{ borderLeft: `4px solid ${confirmingCommand.commandType.includes('STOP') ? 'var(--cds-support-error)' : 'var(--cds-link-primary)'}` }}>
-              <strong style={{ color: confirmingCommand.commandType.includes('STOP') ? 'var(--cds-support-error)' : 'inherit' }}>{confirmingCommand.title}</strong>
-              <p style={{ marginTop: '0.5rem', marginBottom: '1rem', color: 'var(--cds-text-secondary)' }}>
+            <p style={{ marginBottom: '1.5rem' }}>Are you sure you want to execute the following manual control action?</p>
+            
+            <div style={{ padding: '1rem', backgroundColor: 'var(--cds-layer-01)', border: `1px solid ${confirmingCommand.commandType?.includes('STOP') ? 'var(--cds-support-error)' : 'var(--cds-border-subtle-01)'}`, marginBottom: '1.5rem' }}>
+              <h4 style={{ marginBottom: '0.5rem', color: confirmingCommand.commandType?.includes('STOP') ? 'var(--cds-support-error)' : 'inherit' }}>
+                {confirmingCommand.title}
+              </h4>
+              <p style={{ color: 'var(--cds-text-secondary)', marginBottom: '1.5rem' }}>
                 {confirmingCommand.message}
               </p>
-              <Tag type="purple">COMMAND: {confirmingCommand.commandType}</Tag>
-              {confirmingCommand.recommendedValue !== undefined && (
-                <Tag type="blue">TARGET VALUE: {confirmingCommand.recommendedValue} {confirmingCommand.unit || ''}</Tag>
-              )}
-            </Tile>
-            <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--cds-support-warning)' }}>
-              <WarningAlt size={20} />
-              <p><strong>Warning:</strong> This action will directly overwrite the physical setpoints on the remote asset's PLC. Ensure field safety protocols are met before proceeding.</p>
+              
+              <div style={{ display: 'flex', gap: '3rem', borderTop: '1px solid var(--cds-border-subtle-01)', paddingTop: '1rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Command Type</span>
+                  <div style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: '0.25rem' }}>{confirmingCommand.commandType}</div>
+                </div>
+                {confirmingCommand.recommendedValue !== undefined && (
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--cds-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Target Value</span>
+                    <div style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: '0.25rem', color: confirmingCommand.commandType?.includes('STOP') ? 'var(--cds-support-error)' : 'var(--cds-link-primary)' }}>
+                      {confirmingCommand.recommendedValue} {confirmingCommand.unit || ''}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+
+            <InlineNotification
+              kind="warning"
+              title="SCADA Safety Warning:"
+              subtitle="This action will directly overwrite the physical setpoints on the remote asset's PLC. Ensure field safety protocols are met before proceeding."
+              hideCloseButton
+              style={{ maxWidth: '100%' }}
+            />
           </div>
         )}
       </Modal>
