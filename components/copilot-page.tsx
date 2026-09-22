@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from 'react'
 import { Button, Tag, Tile, InlineLoading } from '@carbon/react'
 import { Activity, ArrowUpRight } from '@carbon/icons-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useDigitalTwin } from './digital-twin-provider'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
@@ -76,7 +78,13 @@ export default function CopilotPage() {
             {messages.map((message, index) => (
               <div className={`ws-copilot-message ${message.role}`} key={`${message.role}-${index}`}>
                 <span>{message.role === 'ai' ? 'AI' : 'OPERATOR'}</span>
-                <p>{message.text}</p>
+                {message.role === 'ai' ? (
+                  <div className="markdown-response">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p>{message.text}</p>
+                )}
               </div>
             ))}
             {loading && (
