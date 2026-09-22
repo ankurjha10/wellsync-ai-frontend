@@ -62,10 +62,11 @@ export function SiteHeader() {
         <SideNavItems>
           <SideNavLink href="/" renderIcon={Activity}>Command center</SideNavLink>
           <SideNavLink href="/wells" renderIcon={ChartLine}>Well fleet</SideNavLink>
-          <SideNavLink href={activeWell?.id ? `/wells/${activeWell.id}/schematic` : '/wells'} renderIcon={VirtualMachine}>Pump Schematic</SideNavLink>
-          <SideNavLink href="/analytics" renderIcon={ChartLine}>Analytics</SideNavLink>
-          <SideNavLink href="/copilot" renderIcon={WatsonHealthAiStatus}>AI Copilot</SideNavLink>
-          <SideNavLink href="/alerts" renderIcon={WarningAlt}>Incidents</SideNavLink>
+          <SideNavLink href={activeWell?.id ? `/wells/${activeWell.id}/digital-twin` : '/wells'} renderIcon={VirtualMachine}>Digital Twin</SideNavLink>
+          <SideNavLink href="/performance" renderIcon={ChartLine}>Performance Analytics</SideNavLink>
+          <SideNavLink href="/ai-advisor" renderIcon={WatsonHealthAiStatus}>AI Advisor</SideNavLink>
+          <SideNavLink href="/incidents" renderIcon={WarningAlt}>Incidents & Alarms</SideNavLink>
+          <SideNavLink href="/audit" renderIcon={Activity}>Audit Log</SideNavLink>
         </SideNavItems>
       </SideNav>
     </>
