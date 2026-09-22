@@ -83,16 +83,39 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
           efficiency: readNumber(rawState, 'pumpEfficiencyPercent', 'efficiency'),
         }
         setTelemetry(state)
-        setChartData([{ 
-          time: formatTime(state.timestamp), 
-          pumpRpm: state.pumpRpm || 0, 
-          rodLoad: state.rodLoad || 0,
-          temperature: state.temperature || 0,
-          viscosity: state.viscosity || 0,
-          risk: readNumber(state, 'riskScore'),
-          pressure: state.pressure || 0,
-          efficiency: state.efficiency || 0,
-        }])
+        // Fetch historical data from InfluxDB
+        const historyResponse = await fetch(`${API_URL}/telemetry/history/${well.id}?range=15m`)
+        if (historyResponse.ok) {
+          const rawHistory: Telemetry[] = await historyResponse.json()
+          if (!cancelled) {
+            const parsedHistory = rawHistory.map(h => ({
+              time: formatTime(h.timestamp || new Date().toISOString()), 
+              pumpRpm: readNumber(h, 'pumpRpm', 'pumpRPM', 'rpm'), 
+              rodLoad: readNumber(h, 'rodLoad', 'rodLoadLbs'),
+              temperature: readNumber(h, 'temperature', 'temperatureC'),
+              viscosity: readNumber(h, 'viscosity', 'viscosityCp'),
+              risk: readNumber(h, 'riskScore'),
+              pressure: readNumber(h, 'pressure', 'pressurePsi'),
+              efficiency: readNumber(h, 'pumpEfficiencyPercent', 'efficiency'),
+            }))
+            // Keep up to 60 points for a nice historical view
+            setChartData(parsedHistory.slice(-60))
+          }
+        } else {
+          // Fallback if history fetch fails
+          if (!cancelled) {
+            setChartData([{ 
+              time: formatTime(state.timestamp), 
+              pumpRpm: state.pumpRpm || 0, 
+              rodLoad: state.rodLoad || 0,
+              temperature: state.temperature || 0,
+              viscosity: state.viscosity || 0,
+              risk: readNumber(state, 'riskScore'),
+              pressure: state.pressure || 0,
+              efficiency: state.efficiency || 0,
+            }])
+          }
+        }
       } catch (requestError) {
         if (!cancelled) {
           setConnection('offline')
@@ -136,7 +159,7 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
             risk: readNumber(state, 'riskScore'),
             pressure: state.pressure || 0,
             efficiency: state.efficiency || 0,
-          }].slice(-30))
+          }].slice(-60))
         })
         client.subscribe(`/topic/alerts/${activeWell.id}`, (message) => {
           const alert = receive(message) as AlertItem | null
