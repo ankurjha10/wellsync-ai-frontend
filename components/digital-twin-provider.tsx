@@ -45,6 +45,18 @@ function formatTime(value?: string) {
   return new Date(value).toLocaleTimeString([], { hour12: false })
 }
 
+function mapRecommendationToCommand(recType?: string) {
+  if (!recType) return 'SET_RPM'
+  const normalized = recType.toUpperCase()
+  if (normalized.includes('RPM')) return 'SET_RPM'
+  if (normalized.includes('SPM')) return 'SET_SPM'
+  if (normalized.includes('STROKE')) return 'SET_STROKE'
+  if (normalized.includes('VFD')) return 'SET_VFD'
+  if (normalized.includes('STEAM')) return 'SET_STEAM_RATE'
+  if (normalized.includes('STOP')) return 'STOP_PUMP'
+  return 'SET_RPM'
+}
+
 export function DigitalTwinProvider({ children }: { children: ReactNode }) {
   const [wells, setWells] = useState<Well[]>([])
   const [activeWell, setActiveWell] = useState<Well | null>(null)
@@ -175,8 +187,18 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
           }
         })
         client.subscribe(`/topic/recommendations/${activeWell.id}`, (message) => {
-          const recommendation = receive(message) as Recommendation | null
-          if (recommendation) setRecommendations((current) => [recommendation, ...current].slice(0, 5))
+          const raw = receive(message)
+          if (raw) {
+            const recommendation: Recommendation = {
+              id: raw.id,
+              title: raw.title || (raw.recommendationType ? raw.recommendationType.replace(/_/g, ' ') : 'Recommendation'),
+              message: raw.reason || raw.message,
+              commandType: mapRecommendationToCommand(raw.recommendationType || raw.commandType),
+              recommendedValue: raw.recommendedValue,
+              unit: raw.unit
+            }
+            setRecommendations((current) => [recommendation, ...current].slice(0, 5))
+          }
         })
       },
       onWebSocketClose: () => setConnection('offline'),
@@ -189,10 +211,45 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
 
   async function executeRecommendation(recommendation: Recommendation) {
     if (!activeWell?.id) return
-    await fetch(`${API_URL}/control-commands/execute-recommendation`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wellId: activeWell.id, commandType: recommendation.commandType, requestedValue: recommendation.recommendedValue, unit: recommendation.unit }),
-    })
+    try {
+      const response = await fetch(`${API_URL}/control-commands/execute-recommendation`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          wellId: activeWell.id, 
+          commandType: recommendation.commandType, 
+          requestedValue: recommendation.recommendedValue, 
+          unit: recommendation.unit,
+          recommendationId: recommendation.id,
+          source: 'OPERATOR',
+          status: 'PENDING',
+          requestedById: '81da6534-9203-49e5-b03c-f27b7167ef45' // Admin user
+        }),
+      })
+
+      if (response.ok) {
+        setToasts((current) => [{
+          id: Date.now().toString(),
+          title: 'Command Executed',
+          subtitle: `Successfully sent ${recommendation.commandType} command to the well.`,
+          caption: new Date().toLocaleTimeString(),
+          kind: 'success'
+        } as ToastMessage, ...current].slice(0, 3))
+        
+        // Remove recommendation from the feed so it doesn't stay there forever
+        setRecommendations((current) => current.filter(r => r.id !== recommendation.id))
+      } else {
+        const errorText = await response.text()
+        throw new Error(errorText || 'Failed to execute command')
+      }
+    } catch (err) {
+      setToasts((current) => [{
+        id: Date.now().toString(),
+        title: 'Command Failed',
+        subtitle: err instanceof Error ? err.message : 'Unknown error occurred.',
+        caption: new Date().toLocaleTimeString(),
+        kind: 'error'
+      } as ToastMessage, ...current].slice(0, 3))
+    }
   }
 
   return (
