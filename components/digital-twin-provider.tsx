@@ -19,7 +19,7 @@ type DigitalTwinContextType = {
   chartData: ChartPoint[]
   alerts: AlertItem[]
   recommendations: Recommendation[]
-  connection: 'connecting' | 'live' | 'offline'
+  connection: 'connecting' | 'live' | 'offline' | 'waiting'
   error: string | null
   executeRecommendation: (recommendation: Recommendation) => Promise<void>
   setActiveWell: (well: Well) => void
@@ -65,10 +65,22 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
   const [chartData, setChartData] = useState<ChartPoint[]>([])
   const [alerts, setAlerts] = useState<AlertItem[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [connection, setConnection] = useState<'connecting' | 'live' | 'offline'>('connecting')
+  const [connection, setConnection] = useState<'connecting' | 'live' | 'offline' | 'waiting'>('connecting')
   const [error, setError] = useState<string | null>(null)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const clientRef = useRef<Client | null>(null)
+  const lastTelemetryTime = useRef<number>(Date.now())
+
+  // Telemetry heartbeat monitor
+  useEffect(() => {
+    if (connection === 'offline' || connection === 'connecting') return
+    const interval = setInterval(() => {
+      if (Date.now() - lastTelemetryTime.current > 6000) {
+        setConnection('waiting')
+      }
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [connection])
 
   useEffect(() => {
     let cancelled = false
@@ -100,7 +112,7 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
       } catch (requestError) {
         if (!cancelled) {
           setConnection('offline')
-          setError(requestError instanceof Error ? requestError.message : 'Unable to reach WellSync API')
+          setError('Edge gateway is offline or sensor telemetry is currently unavailable. Waiting for uplink...')
         }
       }
     }
@@ -148,11 +160,13 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
       reconnectDelay: 5000,
       onConnect: () => {
         if (cancelled) return
-        setConnection('live')
+        setConnection('waiting')
         const receive = (message: IMessage) => {
           try { return JSON.parse(message.body) } catch { return null }
         }
         client.subscribe(`/topic/telemetry/${activeWell.id}`, (message) => {
+          lastTelemetryTime.current = Date.now()
+          setConnection('live')
           const raw = receive(message)
           if (!raw) return
           const state: Telemetry = {

@@ -48,7 +48,14 @@ export function SiteHeader() {
         <div className="ws-topbar-title">WellSync AI <span>Operator Terminal</span></div>
         <div className="ws-topbar-status" aria-label="System status">
           <span className="ws-console-clock">{localTime}</span>
-          <span className="ws-header-badge"><i className="ws-header-dot" style={{ backgroundColor: connection === 'live' ? 'var(--cds-support-success)' : 'var(--cds-support-error)', boxShadow: connection === 'live' ? '0 0 7px var(--cds-support-success)' : 'none', animation: connection === 'live' ? 'pulse-dot 1.5s ease-in-out infinite' : 'none' }} />Kafka Link: {connection === 'live' ? 'CONNECTED' : connection.toUpperCase()}</span>
+          <span className="ws-header-badge">
+            <i className="ws-header-dot" style={{ 
+              backgroundColor: connection === 'live' ? 'var(--cds-support-success)' : connection === 'waiting' ? 'var(--cds-support-warning)' : 'var(--cds-support-error)', 
+              boxShadow: connection === 'live' ? '0 0 7px var(--cds-support-success)' : connection === 'waiting' ? '0 0 7px var(--cds-support-warning)' : 'none', 
+              animation: connection === 'live' ? 'pulse-dot 1.5s ease-in-out infinite' : connection === 'waiting' ? 'pulse-dot 3s ease-in-out infinite' : 'none' 
+            }} />
+            Telemetry Uplink: {connection === 'live' ? 'CONNECTED' : connection === 'waiting' ? 'WAITING FOR SENSOR' : connection.toUpperCase()}
+          </span>
           <span className="ws-header-badge">System Health: OPTIMAL</span>
           <span className="ws-operator-id">OP ID: 7892-X</span>
         </div>
