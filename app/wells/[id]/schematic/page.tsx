@@ -41,13 +41,12 @@ export default function WellSchematicPage({ params }: { params: Promise<{ id: st
   return (
     <main id="main-content" className="page-main wellsync-page">
       <div className="ws-shell">
-        <Link href="/" className="ws-back"><ArrowLeft size={16}/> Back to dashboard</Link>
         <Grid condensed className="ws-heading">
           <Column sm={4} md={8} lg={12}>
             <div className="ws-eyebrow">DIGITAL TWIN / SCHEMATIC</div>
             <div className="ws-title-row">
               <div>
-                <h1>{well?.name || well?.wellName || `Well ${id}`} Detailed Schematic</h1>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{well?.name || well?.wellName || `Well ${id}`} Detailed Schematic</h2>
                 <p>Live subsurface view and comprehensive metrics.</p>
               </div>
               <div className="ws-status">
@@ -57,7 +56,30 @@ export default function WellSchematicPage({ params }: { params: Promise<{ id: st
           </Column>
         </Grid>
 
-        <Grid condensed className="ws-main-grid" style={{ marginTop: '1.5rem', height: 'calc(100vh - 13rem)', minHeight: '500px' }}>
+        <Grid style={{ marginTop: '0.5rem', height: 'calc(100vh - 9rem)' }}>
+          {/* Column 1: Detailed Metrics */}
+          <Column sm={4} md={4} lg={4} style={{ height: '100%' }}>
+            <Tile className="ws-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+              <div className="ws-panel-header">
+                <div>
+                  <span className="ws-label">TELEMETRY</span>
+                  <h2>Detailed Metrics</h2>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem', flexShrink: 0 }}>
+                {detailedMetrics.map((m, idx) => (
+                  <div key={idx} style={{ padding: '1rem', background: 'var(--cds-layer-01)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--cds-text-secondary)', fontSize: '0.875rem' }}>{m.label}</span>
+                    <strong style={{ color: 'var(--cds-text-primary)', fontSize: '1.25rem' }}>
+                      {typeof m.value === 'number' ? m.value.toFixed(1) : m.value} <small style={{ color: 'var(--cds-text-helper)', fontSize: '0.875rem', marginLeft: '0.25rem' }}>{m.unit}</small>
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            </Tile>
+          </Column>
+
+          {/* Column 2: Pump Schematic */}
           <Column sm={4} md={8} lg={8} style={{ height: '100%' }}>
             <Tile className="ws-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <div className="ws-panel-header">
@@ -80,27 +102,9 @@ export default function WellSchematicPage({ params }: { params: Promise<{ id: st
             </Tile>
           </Column>
 
-          <Column sm={4} md={8} lg={4}>
-            <Tile className="ws-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-              <div className="ws-panel-header">
-                <div>
-                  <span className="ws-label">TELEMETRY</span>
-                  <h2>Detailed Metrics</h2>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem', flexShrink: 0 }}>
-                {detailedMetrics.map((m, idx) => (
-                  <div key={idx} style={{ padding: '1rem', background: 'var(--cds-layer-01)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--cds-text-secondary)', fontSize: '0.875rem' }}>{m.label}</span>
-                    <strong style={{ color: 'var(--cds-text-primary)', fontSize: '1.25rem' }}>
-                      {typeof m.value === 'number' ? m.value.toFixed(1) : m.value} <small style={{ color: 'var(--cds-text-helper)', fontSize: '0.875rem', marginLeft: '0.25rem' }}>{m.unit}</small>
-                    </strong>
-                  </div>
-                ))}
-              </div>
-              
-              <TelemetryCharts />
-            </Tile>
+          {/* Column 3: Telemetry Charts */}
+          <Column sm={4} md={4} lg={4} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <TelemetryCharts />
           </Column>
         </Grid>
       </div>

@@ -19,7 +19,7 @@ export function PumpSchematic({
   const pumpDuration = `${Math.max(0.8, Math.min(4, 60 / pumpRpm))}s`;
 
   return (
-    <svg style={{ width: '100%', height: '100%', minHeight: '400px' }} viewBox="0 0 520 460" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg style={{ width: '100%', height: '100%', maxHeight: '100%' }} viewBox="0 0 520 460" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="casingGrad" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="var(--cds-border-strong-01)" />

@@ -28,7 +28,7 @@ export function TelemetryCharts() {
         </div>
         <div style={{ height: '280px', width: '100%', marginTop: '1rem' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+            <LineChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <CartesianGrid stroke="var(--cds-border-subtle-01)" vertical={false} />
               <XAxis dataKey="time" tick={{ fontSize: 11 }} tickMargin={8} minTickGap={20} />
               <YAxis yAxisId="left" tick={{ fontSize: 11 }} stroke="var(--cds-support-warning)" domain={['auto', 'auto']} tickFormatter={(v) => `${(v/1000).toFixed(1)}k`} />
@@ -50,7 +50,7 @@ export function TelemetryCharts() {
         </div>
         <div style={{ height: '280px', width: '100%', marginTop: '1rem' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+            <LineChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <CartesianGrid stroke="var(--cds-border-subtle-01)" vertical={false} />
               <XAxis dataKey="time" tick={{ fontSize: 11 }} tickMargin={8} minTickGap={20} />
               <YAxis yAxisId="left" tick={{ fontSize: 11 }} stroke="var(--cds-support-warning)" domain={['dataMin - 10', 'dataMax + 10']} />
