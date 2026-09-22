@@ -22,6 +22,7 @@ type DigitalTwinContextType = {
   connection: 'connecting' | 'live' | 'offline'
   error: string | null
   executeRecommendation: (recommendation: Recommendation) => Promise<void>
+  setActiveWell: (well: Well) => void
 }
 
 const DigitalTwinContext = createContext<DigitalTwinContextType | null>(null)
@@ -95,39 +96,7 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
           efficiency: readNumber(rawState, 'pumpEfficiencyPercent', 'efficiency'),
         }
         setTelemetry(state)
-        // Fetch historical data from InfluxDB
-        const historyResponse = await fetch(`${API_URL}/telemetry/history/${well.id}?range=15m`)
-        if (historyResponse.ok) {
-          const rawHistory: Telemetry[] = await historyResponse.json()
-          if (!cancelled) {
-            const parsedHistory = rawHistory.map(h => ({
-              time: formatTime(h.timestamp || new Date().toISOString()), 
-              pumpRpm: readNumber(h, 'pumpRpm', 'pumpRPM', 'rpm'), 
-              rodLoad: readNumber(h, 'rodLoad', 'rodLoadLbs'),
-              temperature: readNumber(h, 'temperature', 'temperatureC'),
-              viscosity: readNumber(h, 'viscosity', 'viscosityCp'),
-              risk: readNumber(h, 'riskScore'),
-              pressure: readNumber(h, 'pressure', 'pressurePsi'),
-              efficiency: readNumber(h, 'pumpEfficiencyPercent', 'efficiency'),
-            }))
-            // Keep up to 60 points for a nice historical view
-            setChartData(parsedHistory.slice(-60))
-          }
-        } else {
-          // Fallback if history fetch fails
-          if (!cancelled) {
-            setChartData([{ 
-              time: formatTime(state.timestamp), 
-              pumpRpm: state.pumpRpm || 0, 
-              rodLoad: state.rodLoad || 0,
-              temperature: state.temperature || 0,
-              viscosity: state.viscosity || 0,
-              risk: readNumber(state, 'riskScore'),
-              pressure: state.pressure || 0,
-              efficiency: state.efficiency || 0,
-            }])
-          }
-        }
+        // History fetch moved to the activeWell dependency effect
       } catch (requestError) {
         if (!cancelled) {
           setConnection('offline')
@@ -141,10 +110,44 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!activeWell?.id) return
+    let cancelled = false
+
+    // Clear state before switching wells
+    setChartData([])
+    setAlerts([])
+    setRecommendations([])
+
+    // Fetch history for the new active well
+    async function loadHistory() {
+      try {
+        const historyResponse = await fetch(`${API_URL}/telemetry/history/${activeWell?.id}?range=15m`)
+        if (historyResponse.ok) {
+          const rawHistory: Telemetry[] = await historyResponse.json()
+          if (!cancelled) {
+            const parsedHistory = rawHistory.map(h => ({
+              time: formatTime(h.timestamp || new Date().toISOString()), 
+              pumpRpm: readNumber(h, 'pumpRpm', 'pumpRPM', 'rpm'), 
+              rodLoad: readNumber(h, 'rodLoad', 'rodLoadLbs'),
+              temperature: readNumber(h, 'temperature', 'temperatureC'),
+              viscosity: readNumber(h, 'viscosity', 'viscosityCp'),
+              risk: readNumber(h, 'riskScore'),
+              pressure: readNumber(h, 'pressure', 'pressurePsi'),
+              efficiency: readNumber(h, 'pumpEfficiencyPercent', 'efficiency'),
+            }))
+            setChartData(parsedHistory.slice(-60))
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load history for well switch', err)
+      }
+    }
+    loadHistory()
+
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
       reconnectDelay: 5000,
       onConnect: () => {
+        if (cancelled) return
         setConnection('live')
         const receive = (message: IMessage) => {
           try { return JSON.parse(message.body) } catch { return null }
@@ -201,12 +204,15 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
           }
         })
       },
-      onWebSocketClose: () => setConnection('offline'),
-      onStompError: () => setConnection('offline'),
+      onStompError: () => { if (!cancelled) setConnection('offline') },
     })
     clientRef.current = client
     client.activate()
-    return () => { client.deactivate(); clientRef.current = null }
+    return () => { 
+      cancelled = true
+      client.deactivate()
+      clientRef.current = null 
+    }
   }, [activeWell?.id])
 
   async function executeRecommendation(recommendation: Recommendation) {
@@ -253,7 +259,7 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <DigitalTwinContext.Provider value={{ wells, activeWell, telemetry, chartData, alerts, recommendations, connection, error, executeRecommendation }}>
+    <DigitalTwinContext.Provider value={{ wells, activeWell, setActiveWell, telemetry, chartData, alerts, recommendations, connection, error, executeRecommendation }}>
       <div className="ws-toast-container" style={{ position: 'fixed', top: '4rem', right: '1rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {toasts.map(t => (
           <ToastNotification

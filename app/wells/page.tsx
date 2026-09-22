@@ -16,7 +16,7 @@ function StatusTag({ status }: { status?: string }) {
 }
 
 export default function WellsPage() {
-  const { wells } = useDigitalTwin()
+  const { wells, activeWell, setActiveWell } = useDigitalTwin()
 
   return (
     <main id="main-content" className="page-main wellsync-page">
@@ -52,10 +52,21 @@ export default function WellsPage() {
                 ) : (
                   wells.map((well: Well) => (
                     <tr key={well.id}>
-                      <td><strong>{well.wellName || well.name || well.wellCode || well.id}</strong></td>
+                      <td>
+                        <strong>{well.wellName || well.name || well.wellCode || well.id}</strong>
+                        {activeWell?.id === well.id && (
+                          <Tag type="purple" style={{ marginLeft: '0.5rem' }}>Current</Tag>
+                        )}
+                      </td>
                       <td>{well.location || well.field || '—'}</td>
                       <td><StatusTag status={well.status} /></td>
-                      <td><Button kind="ghost" size="sm" href="/">Open dashboard</Button></td>
+                      <td>
+                        {activeWell?.id === well.id ? (
+                          <Button kind="ghost" size="sm" href="/">Go to dashboard</Button>
+                        ) : (
+                          <Button kind="primary" size="sm" onClick={() => setActiveWell(well)} href="/">Select & View</Button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}

@@ -9,6 +9,7 @@ import {
   SkeletonPlaceholder,
   Tag,
   Tile,
+  Dropdown,
 } from '@carbon/react'
 import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt } from '@carbon/icons-react'
 import { useDigitalTwin, type Telemetry } from './digital-twin-provider'
@@ -32,7 +33,7 @@ function severityTag(severity?: string) {
 }
 
 export function WellSyncDashboard() {
-  const { wells, activeWell, telemetry, chartData, alerts, recommendations, connection, error, executeRecommendation } = useDigitalTwin()
+  const { wells, activeWell, setActiveWell, telemetry, chartData, alerts, recommendations, connection, error, executeRecommendation } = useDigitalTwin()
 
   const metrics = useMemo(() => [
     ['Temperature', readNumber(telemetry, 'temperature', 'temperatureC'), '°C'],
@@ -58,7 +59,25 @@ export function WellSyncDashboard() {
           </Column>
         </Grid>
         <Grid condensed className="ws-context">
-          <Column sm={4} md={4} lg={4}><span className="ws-label">ACTIVE WELL</span><strong>{activeWell?.name || activeWell?.wellName || 'Loading well registry…'}</strong></Column>
+          <Column sm={4} md={4} lg={4}>
+            <span className="ws-label">ACTIVE WELL</span>
+            {wells.length > 0 ? (
+              <div style={{ marginTop: '0.25rem' }}>
+                <Dropdown
+                  id="well-selector"
+                  titleText="Select Well"
+                  hideLabel
+                  items={wells}
+                  itemToString={(item: Well) => item?.name || item?.wellName || item?.id || ''}
+                  selectedItem={activeWell}
+                  onChange={({ selectedItem }) => selectedItem && setActiveWell(selectedItem)}
+                  size="sm"
+                />
+              </div>
+            ) : (
+              <strong>Loading well registry…</strong>
+            )}
+          </Column>
           <Column sm={4} md={4} lg={4}><span className="ws-label">FIELD</span><strong>{activeWell?.field || activeWell?.location || '—'}</strong></Column>
           <Column sm={4} md={4} lg={4}><span className="ws-label">ASSET COUNT</span><strong>{wells.length || '—'} connected wells</strong></Column>
         </Grid>
