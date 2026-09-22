@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, type CSSProperties } from 'react'
+import { useState, useMemo, type CSSProperties } from 'react'
 import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   Button,
@@ -10,9 +10,10 @@ import {
   Tag,
   Tile,
   Dropdown,
+  Modal,
 } from '@carbon/react'
 import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt } from '@carbon/icons-react'
-import { useDigitalTwin, type Telemetry } from './digital-twin-provider'
+import { useDigitalTwin, type Telemetry, type Recommendation, type Well } from './digital-twin-provider'
 import { PumpSchematic } from './pump-schematic'
 
 function readNumber(data: Telemetry, ...keys: string[]) {
@@ -34,6 +35,7 @@ function severityTag(severity?: string) {
 
 export function WellSyncDashboard() {
   const { wells, activeWell, setActiveWell, telemetry, chartData, alerts, recommendations, connection, error, executeRecommendation } = useDigitalTwin()
+  const [confirmingCommand, setConfirmingCommand] = useState<Recommendation | null>(null)
 
   const metrics = useMemo(() => [
     ['Temperature', readNumber(telemetry, 'temperature', 'temperatureC'), '°C'],
@@ -66,6 +68,7 @@ export function WellSyncDashboard() {
                 <Dropdown
                   id="well-selector"
                   titleText="Select Well"
+                  label="Select Well"
                   hideLabel
                   items={wells}
                   itemToString={(item: Well) => item?.name || item?.wellName || item?.id || ''}
@@ -87,9 +90,44 @@ export function WellSyncDashboard() {
         </Grid>
         <Grid condensed className="ws-main-grid">
           <Column sm={4} md={8} lg={8}><Tile className="ws-panel ws-chart-panel"><div className="ws-panel-header"><div><span className="ws-label">LIVE TELEMETRY</span><h2>Mechanical performance</h2></div><Tag type="blue">Last 30 readings</Tag></div><div className="ws-legend"><span><i className="ws-blue" /> Pump RPM</span><span><i className="ws-orange" /> Rod Load</span></div>{isLoadingRegistry ? <div className="ws-chart-skeleton"><SkeletonPlaceholder className="ws-chart-skeleton-placeholder" /></div> : <div className="ws-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 12, right: 8, bottom: 4, left: 0 }}><defs><linearGradient id="pumpFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--cds-link-primary)" stopOpacity={0.18}/><stop offset="95%" stopColor="var(--cds-link-primary)" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="var(--cds-border-subtle-01)" vertical={false}/><XAxis dataKey="time" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="left" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ background: 'var(--cds-layer-01)', border: '1px solid var(--cds-border-strong-01)' }}/><Area yAxisId="left" type="monotone" dataKey="pumpRpm" stroke="var(--cds-link-primary)" fill="url(#pumpFill)" strokeWidth={2} dot={false}/><Area yAxisId="right" type="monotone" dataKey="rodLoad" stroke="var(--cds-support-warning)" fill="none" strokeWidth={2} dot={false}/></AreaChart></ResponsiveContainer></div>}</Tile></Column>
-          <Column sm={4} md={8} lg={4}><Tile className="ws-panel ws-feed-panel"><div className="ws-panel-header"><div><span className="ws-label">DECISION SUPPORT</span><h2>Alerts & recommendations</h2></div><Information size={20}/></div><div className="ws-feed">{recommendations.map((item, index) => <div className="ws-feed-item ws-recommendation" key={item.id || `recommendation-${index}`}><div className="ws-feed-heading"><Tag type="purple">AI RECOMMENDATION</Tag><span>{item.title || item.commandType || 'Control action'}</span></div><p>{item.message || `Adjust to ${item.recommendedValue ?? 'recommended'} ${item.unit || ''}`}</p><Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => executeRecommendation(item)}>Execute command</Button></div>)}{alerts.map((item, index) => { const status = severityTag(item.severity); const Icon = status.icon; return <div className="ws-feed-item" key={item.id || `alert-${index}`}><div className="ws-feed-heading"><Tag type={status.type}><Icon size={14} /> {item.severity || 'INFO'}</Tag><span>{formatTime(item.timestamp)}</span></div><p>{item.message || item.description || 'System alert received from the field.'}</p></div> })}{!recommendations.length && !alerts.length && <div className="ws-empty"><CheckmarkFilled size={32} /><p>Systems Nominal - No active alerts</p><span>Live decision support is monitoring this well.</span></div>}</div></Tile></Column>
+          <Column sm={4} md={8} lg={4}><Tile className="ws-panel ws-feed-panel"><div className="ws-panel-header"><div><span className="ws-label">DECISION SUPPORT</span><h2>Alerts & recommendations</h2></div><Information size={20}/></div><div className="ws-feed">{recommendations.map((item, index) => <div className="ws-feed-item ws-recommendation" key={item.id || `recommendation-${index}`}><div className="ws-feed-heading"><Tag type="purple">AI RECOMMENDATION</Tag><span>{item.title || item.commandType || 'Control action'}</span></div><p>{item.message || `Adjust to ${item.recommendedValue ?? 'recommended'} ${item.unit || ''}`}</p><Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => setConfirmingCommand(item)}>Execute command</Button></div>)}{alerts.map((item, index) => { const status = severityTag(item.severity); const Icon = status.icon; return <div className="ws-feed-item" key={item.id || `alert-${index}`}><div className="ws-feed-heading"><Tag type={status.type}><Icon size={14} /> {item.severity || 'INFO'}</Tag><span>{formatTime(item.timestamp)}</span></div><p>{item.message || item.description || 'System alert received from the field.'}</p></div> })}{!recommendations.length && !alerts.length && <div className="ws-empty"><CheckmarkFilled size={32} /><p>Systems Nominal - No active alerts</p><span>Live decision support is monitoring this well.</span></div>}</div></Tile></Column>
         </Grid>
       </div>
+      
+      <Modal
+        open={!!confirmingCommand}
+        onRequestClose={() => setConfirmingCommand(null)}
+        onRequestSubmit={() => {
+          if (confirmingCommand) {
+            executeRecommendation(confirmingCommand)
+            setConfirmingCommand(null)
+          }
+        }}
+        modalHeading="Confirm Edge Gateway Command"
+        primaryButtonText="Confirm & Execute"
+        secondaryButtonText="Cancel"
+        danger={confirmingCommand?.commandType?.includes('STOP')}
+      >
+        {confirmingCommand && (
+          <div style={{ paddingBottom: '1rem' }}>
+            <p style={{ marginBottom: '1rem' }}>Are you sure you want to execute the following AI recommendation?</p>
+            <Tile className="ws-panel" style={{ borderLeft: '4px solid var(--cds-link-primary)' }}>
+              <strong>{confirmingCommand.title}</strong>
+              <p style={{ marginTop: '0.5rem', marginBottom: '1rem', color: 'var(--cds-text-secondary)' }}>
+                {confirmingCommand.message}
+              </p>
+              <Tag type="purple">COMMAND: {confirmingCommand.commandType}</Tag>
+              {confirmingCommand.recommendedValue !== undefined && (
+                <Tag type="blue">TARGET VALUE: {confirmingCommand.recommendedValue} {confirmingCommand.unit || ''}</Tag>
+              )}
+            </Tile>
+            <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--cds-support-warning)' }}>
+              <WarningAlt size={20} />
+              <p><strong>Warning:</strong> This action will directly overwrite the physical setpoints on the remote asset's PLC. Ensure field safety protocols are met before proceeding.</p>
+            </div>
+          </div>
+        )}
+      </Modal>
     </main>
   )
 }

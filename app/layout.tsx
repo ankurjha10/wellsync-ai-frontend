@@ -6,6 +6,7 @@ import './globals.scss'
 import './wellsync.scss'
 import './scada.scss'
 import { DigitalTwinProvider } from '@/components/digital-twin-provider'
+import { DataGuard } from '@/components/data-guard'
 
 export const metadata: Metadata = {
   title: 'WellSync AI | Digital Twin Operations',
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <ThemeProvider>
           <DigitalTwinProvider>
             <SiteHeader />
-            {children}
+            <DataGuard>
+              {children}
+            </DataGuard>
           </DigitalTwinProvider>
         </ThemeProvider>
       </body>

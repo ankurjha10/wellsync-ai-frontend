@@ -70,6 +70,8 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const clientRef = useRef<Client | null>(null)
   const lastTelemetryTime = useRef<number>(Date.now())
+  const recentlyExecuted = useRef<Set<string>>(new Set())
+  const recentAlerts = useRef<Set<string>>(new Set())
 
   // Telemetry heartbeat monitor
   useEffect(() => {
@@ -193,7 +195,12 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
         })
         client.subscribe(`/topic/alerts/${activeWell.id}`, (message) => {
           const alert = receive(message) as AlertItem | null
-          if (alert) {
+          if (alert && alert.message) {
+            // Deduplicate alerts to prevent UI flooding
+            if (recentAlerts.current.has(alert.message)) return
+            recentAlerts.current.add(alert.message)
+            setTimeout(() => recentAlerts.current.delete(alert.message!), 30000)
+
             setAlerts((current) => [alert, ...current].slice(0, 8))
             setToasts((current) => [{
               id: alert.id || Date.now().toString() + Math.random(),
@@ -207,15 +214,24 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
         client.subscribe(`/topic/recommendations/${activeWell.id}`, (message) => {
           const raw = receive(message)
           if (raw) {
+            const commandType = mapRecommendationToCommand(raw.recommendationType || raw.commandType)
+            
+            // Ignore if we just executed this command type recently
+            if (recentlyExecuted.current.has(commandType)) return
+
             const recommendation: Recommendation = {
               id: raw.id,
               title: raw.title || (raw.recommendationType ? raw.recommendationType.replace(/_/g, ' ') : 'Recommendation'),
               message: raw.reason || raw.message,
-              commandType: mapRecommendationToCommand(raw.recommendationType || raw.commandType),
+              commandType: commandType,
               recommendedValue: raw.recommendedValue,
               unit: raw.unit
             }
-            setRecommendations((current) => [recommendation, ...current].slice(0, 5))
+            setRecommendations((current) => {
+              // Deduplicate in the list so it doesn't show multiple of the same type
+              if (current.some(r => r.commandType === recommendation.commandType)) return current
+              return [recommendation, ...current].slice(0, 5)
+            })
           }
         })
       },
@@ -248,6 +264,11 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
       })
 
       if (response.ok) {
+        if (recommendation.commandType) {
+          recentlyExecuted.current.add(recommendation.commandType)
+          setTimeout(() => recentlyExecuted.current.delete(recommendation.commandType!), 30000)
+        }
+
         setToasts((current) => [{
           id: Date.now().toString(),
           title: 'Command Executed',
