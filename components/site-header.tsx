@@ -3,6 +3,7 @@
 import {
   Header,
   HeaderGlobalAction,
+  HeaderMenuButton,
   SideNav,
   SideNavItems,
   SideNavLink,
@@ -18,7 +19,7 @@ export function SiteHeader() {
   const { activeWell } = useDigitalTwin()
   const isDark = theme === 'g100'
   const [utcTime, setUtcTime] = useState('00:00:00 UTC')
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [isNavExpanded, setIsNavExpanded] = useState(true)
 
   useEffect(() => {
     const updateClock = () => setUtcTime(`${new Date().toISOString().slice(11, 19)} UTC`)
@@ -26,6 +27,14 @@ export function SiteHeader() {
     const timer = window.setInterval(updateClock, 1000)
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (isNavExpanded) {
+      document.body.classList.add('nav-expanded')
+    } else {
+      document.body.classList.remove('nav-expanded')
+    }
+  }, [isNavExpanded])
 
   return (
     <>
@@ -38,12 +47,14 @@ export function SiteHeader() {
           <span className="ws-header-badge">System Health: OPTIMAL</span>
           <span className="ws-operator-id">OP ID: 7892-X</span>
         </div>
-        <HeaderGlobalAction aria-label="Toggle navigation" tooltipAlignment="end" onClick={() => setMobileNavOpen((open) => !open)}><Menu size={20} /></HeaderGlobalAction>
+        <HeaderGlobalAction aria-label={isNavExpanded ? 'Close sidebar' : 'Open sidebar'} tooltipAlignment="end" onClick={() => setIsNavExpanded(!isNavExpanded)}>
+          <Menu size={20} />
+        </HeaderGlobalAction>
         <HeaderGlobalAction aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'} tooltipAlignment="end" onClick={toggleTheme}>
           {isDark ? <Light size={20} /> : <Asleep size={20} />}
         </HeaderGlobalAction>
       </Header>
-      <SideNav aria-label="WellSync AI navigation" expanded className={`ws-sidebar ${mobileNavOpen ? 'ws-sidebar-open' : ''}`}>
+      <SideNav aria-label="WellSync AI navigation" expanded={isNavExpanded} className={`ws-sidebar ${isNavExpanded ? 'ws-sidebar-open' : ''}`}>
         <div className="ws-sidebar-brand">WS<span>•</span></div>
         <SideNavItems>
           <SideNavLink href="/" renderIcon={Activity}>Command center</SideNavLink>
