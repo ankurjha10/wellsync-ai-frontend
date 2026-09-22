@@ -13,9 +13,11 @@ import {
   Modal,
   InlineNotification
 } from '@carbon/react'
-import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt } from '@carbon/icons-react'
-import { useDigitalTwin, type Telemetry, type Recommendation, type Well } from './digital-twin-provider'
+import { Activity, ArrowUpRight, CheckmarkFilled, ErrorFilled, Information, Renew, WarningAlt, Idea } from '@carbon/icons-react'
+import { useDigitalTwin, type Telemetry, type Recommendation, type Well, type AlertItem } from './digital-twin-provider'
 import { PumpSchematic } from './pump-schematic'
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
 function readNumber(data: Telemetry, ...keys: string[]) {
   const value = keys.map((key) => data[key]).find((item) => typeof item === 'number')
@@ -37,6 +39,10 @@ function severityTag(severity?: string) {
 export function WellSyncDashboard() {
   const { wells, activeWell, setActiveWell, telemetry, chartData, alerts, recommendations, connection, error, executeRecommendation } = useDigitalTwin()
   const [confirmingCommand, setConfirmingCommand] = useState<Recommendation | null>(null)
+  
+  // AI Explanation State
+  const [explainingAlertId, setExplainingAlertId] = useState<string | null>(null)
+  const [alertExplanation, setAlertExplanation] = useState<{alert: AlertItem, explanation: string} | null>(null)
 
   const metrics = useMemo(() => [
     ['Temperature', readNumber(telemetry, 'temperature', 'temperatureC'), '°C'],
@@ -51,6 +57,22 @@ export function WellSyncDashboard() {
   const isLoadingRegistry = wells.length === 0 && !error
   const pumpRpm = readNumber(telemetry, 'pumpRpm', 'pumpRPM') || 12
   const pumpDuration = `${Math.max(0.8, Math.min(4, 60 / pumpRpm))}s`
+
+  async function handleExplainAlert(alert: AlertItem) {
+    if (!alert.id) return
+    setExplainingAlertId(alert.id)
+    try {
+      const response = await fetch(`${API_URL}/copilot/explain-alert/${alert.id}`)
+      if (!response.ok) throw new Error('Failed to fetch explanation')
+      const data = await response.json()
+      const explanationText = typeof data === 'string' ? data : (data.response || data.explanation || data.message || 'No explanation available.')
+      setAlertExplanation({ alert, explanation: explanationText })
+    } catch (err) {
+      setAlertExplanation({ alert, explanation: 'Failed to retrieve AI explanation. The service might be temporarily unavailable.' })
+    } finally {
+      setExplainingAlertId(null)
+    }
+  }
 
   return (
     <main id="main-content" className="page-main wellsync-page">
@@ -91,10 +113,88 @@ export function WellSyncDashboard() {
         </Grid>
         <Grid condensed className="ws-main-grid">
           <Column sm={4} md={8} lg={8}><Tile className="ws-panel ws-chart-panel"><div className="ws-panel-header"><div><span className="ws-label">LIVE TELEMETRY</span><h2>Mechanical performance</h2></div><Tag type="blue">Last 30 readings</Tag></div><div className="ws-legend"><span><i className="ws-blue" /> Pump RPM</span><span><i className="ws-orange" /> Rod Load</span></div>{isLoadingRegistry ? <div className="ws-chart-skeleton"><SkeletonPlaceholder className="ws-chart-skeleton-placeholder" /></div> : <div className="ws-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chartData} margin={{ top: 12, right: 8, bottom: 4, left: 0 }}><defs><linearGradient id="pumpFill" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--cds-link-primary)" stopOpacity={0.18}/><stop offset="95%" stopColor="var(--cds-link-primary)" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="var(--cds-border-subtle-01)" vertical={false}/><XAxis dataKey="time" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="left" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--cds-text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ background: 'var(--cds-layer-01)', border: '1px solid var(--cds-border-strong-01)' }}/><Area yAxisId="left" type="monotone" dataKey="pumpRpm" stroke="var(--cds-link-primary)" fill="url(#pumpFill)" strokeWidth={2} dot={false}/><Area yAxisId="right" type="monotone" dataKey="rodLoad" stroke="var(--cds-support-warning)" fill="none" strokeWidth={2} dot={false}/></AreaChart></ResponsiveContainer></div>}</Tile></Column>
-          <Column sm={4} md={8} lg={4}><Tile className="ws-panel ws-feed-panel"><div className="ws-panel-header"><div><span className="ws-label">DECISION SUPPORT</span><h2>Alerts & recommendations</h2></div><Information size={20}/></div><div className="ws-feed">{recommendations.map((item, index) => <div className="ws-feed-item ws-recommendation" key={item.id || `recommendation-${index}`}><div className="ws-feed-heading"><Tag type="purple">AI RECOMMENDATION</Tag><span>{item.title || item.commandType || 'Control action'}</span></div><p>{item.message || `Adjust to ${item.recommendedValue ?? 'recommended'} ${item.unit || ''}`}</p><Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => setConfirmingCommand(item)}>Execute command</Button></div>)}{alerts.map((item, index) => { const status = severityTag(item.severity); const Icon = status.icon; return <div className="ws-feed-item" key={item.id || `alert-${index}`}><div className="ws-feed-heading"><Tag type={status.type}><Icon size={14} /> {item.severity || 'INFO'}</Tag><span>{formatTime(item.timestamp)}</span></div><p>{item.message || item.description || 'System alert received from the field.'}</p></div> })}{!recommendations.length && !alerts.length && <div className="ws-empty"><CheckmarkFilled size={32} /><p>Systems Nominal - No active alerts</p><span>Live decision support is monitoring this well.</span></div>}</div></Tile></Column>
+          <Column sm={4} md={8} lg={4}>
+            <Tile className="ws-panel ws-feed-panel">
+              <div className="ws-panel-header"><div><span className="ws-label">DECISION SUPPORT</span><h2>Alerts & recommendations</h2></div><Information size={20}/></div>
+              <div className="ws-feed">
+                {recommendations.map((item, index) => (
+                  <div className="ws-feed-item ws-recommendation" key={item.id || `recommendation-${index}`}>
+                    <div className="ws-feed-heading">
+                      <Tag type="purple">AI RECOMMENDATION</Tag>
+                      <span>{item.title || item.commandType || 'Control action'}</span>
+                    </div>
+                    <p>{item.message || `Adjust to ${item.recommendedValue ?? 'recommended'} ${item.unit || ''}`}</p>
+                    <Button size="sm" kind="tertiary" renderIcon={ArrowUpRight} onClick={() => setConfirmingCommand(item)}>Execute command</Button>
+                  </div>
+                ))}
+                {alerts.map((item, index) => { 
+                  const status = severityTag(item.severity); 
+                  const Icon = status.icon; 
+                  return (
+                    <div className="ws-feed-item" key={item.id || `alert-${index}`}>
+                      <div className="ws-feed-heading">
+                        <Tag type={status.type}><Icon size={14} /> {item.severity || 'INFO'}</Tag>
+                        <span>{formatTime(item.timestamp)}</span>
+                      </div>
+                      <p>{item.message || item.description || 'System alert received from the field.'}</p>
+                      {item.id && (
+                         <Button 
+                           size="sm" 
+                           kind="ghost" 
+                           renderIcon={Idea} 
+                           onClick={() => handleExplainAlert(item)}
+                           disabled={explainingAlertId === item.id}
+                         >
+                           {explainingAlertId === item.id ? 'Thinking...' : 'AI Explain'}
+                         </Button>
+                      )}
+                    </div> 
+                  )
+                })}
+                {!recommendations.length && !alerts.length && (
+                  <div className="ws-empty">
+                    <CheckmarkFilled size={32} />
+                    <p>Systems Nominal - No active alerts</p>
+                    <span>Live decision support is monitoring this well.</span>
+                  </div>
+                )}
+              </div>
+            </Tile>
+          </Column>
         </Grid>
       </div>
       
+      {/* AI Explanation Modal */}
+      <Modal
+        open={!!alertExplanation}
+        onRequestClose={() => setAlertExplanation(null)}
+        passiveModal
+        modalHeading="AI Root Cause Analysis"
+      >
+        {alertExplanation && (
+          <div style={{ paddingBottom: '1rem' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <Tag type={severityTag(alertExplanation.alert.severity).type}>
+                {alertExplanation.alert.severity || 'INFO'}
+              </Tag>
+              <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>
+                {alertExplanation.alert.message || alertExplanation.alert.description}
+              </span>
+            </div>
+            
+            <div style={{ padding: '1.5rem', backgroundColor: 'var(--cds-layer-01)', border: '1px solid var(--cds-border-subtle-01)', borderLeft: '4px solid #8a3ffc' }}>
+              <h4 style={{ marginBottom: '1rem', color: '#8a3ffc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Idea size={20} /> AI Explanation
+              </h4>
+              <p style={{ color: 'var(--cds-text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                {alertExplanation.explanation}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edge Gateway Command Confirm Modal */}
       <Modal
         open={!!confirmingCommand}
         onRequestClose={() => setConfirmingCommand(null)}

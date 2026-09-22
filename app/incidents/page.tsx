@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Information } from '@carbon/icons-react'
-import { Grid, Column, Tag, Tile, DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '@carbon/react'
+import { ArrowLeft, Information, Idea } from '@carbon/icons-react'
+import { Grid, Column, Tag, Tile, DataTable, Table, TableHead, TableRow, TableHeader, TableBody, TableCell, Modal } from '@carbon/react'
 import { useDigitalTwin, type AlertItem } from '@/components/digital-twin-provider'
 import '../wellsync.scss'
 
@@ -14,13 +14,24 @@ const headers = [
   { key: 'message', header: 'Message' },
   { key: 'description', header: 'Description' },
   { key: 'timestamp', header: 'Time' },
-  { key: 'acknowledged', header: 'Status' }
+  { key: 'acknowledged', header: 'Status / Actions' }
 ]
+
+function severityTag(severity?: string) {
+  const normalized = severity?.toLowerCase()
+  if (normalized === 'critical' || normalized === 'high') return { type: 'red' as const }
+  if (normalized === 'warning' || normalized === 'medium') return { type: 'magenta' as const }
+  return { type: 'blue' as const }
+}
 
 export default function AlertsPage() {
   const { activeWell } = useDigitalTwin()
   const [historyAlerts, setHistoryAlerts] = useState<AlertItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // AI Explanation State
+  const [explainingAlertId, setExplainingAlertId] = useState<string | null>(null)
+  const [alertExplanation, setAlertExplanation] = useState<{alert: AlertItem, explanation: string} | null>(null)
 
   useEffect(() => {
     if (!activeWell?.id) return
@@ -58,6 +69,22 @@ export default function AlertsPage() {
       }
     } catch (err) {
       console.error('Failed to acknowledge alert:', err)
+    }
+  }
+
+  async function handleExplainAlert(alert: AlertItem) {
+    if (!alert.id) return
+    setExplainingAlertId(alert.id)
+    try {
+      const response = await fetch(`${API_URL}/copilot/explain-alert/${alert.id}`)
+      if (!response.ok) throw new Error('Failed to fetch explanation')
+      const data = await response.json()
+      const explanationText = typeof data === 'string' ? data : (data.response || data.explanation || data.message || 'No explanation available.')
+      setAlertExplanation({ alert, explanation: explanationText })
+    } catch (err) {
+      setAlertExplanation({ alert, explanation: 'Failed to retrieve AI explanation. The service might be temporarily unavailable.' })
+    } finally {
+      setExplainingAlertId(null)
     }
   }
 
@@ -116,13 +143,9 @@ export default function AlertsPage() {
                           {row.cells.map((cell) => {
                             if (cell.info.header === 'severity') {
                               const sev = (cell.value || '').toUpperCase()
-                              let tagType = 'blue'
-                              if (sev === 'CRITICAL' || sev === 'HIGH') tagType = 'red'
-                              else if (sev === 'WARNING' || sev === 'MEDIUM') tagType = 'magenta'
-                              
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={tagType as any} size="sm">{sev || 'INFO'}</Tag>
+                                  <Tag type={severityTag(sev).type} size="sm">{sev || 'INFO'}</Tag>
                                 </TableCell>
                               )
                             }
@@ -136,17 +159,30 @@ export default function AlertsPage() {
                             if (cell.info.header === 'acknowledged') {
                               return (
                                 <TableCell key={cell.id}>
-                                  {cell.value ? (
-                                    <Tag type="green" size="sm">Acknowledged</Tag>
-                                  ) : (
+                                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    {cell.value ? (
+                                      <Tag type="green" size="sm" style={{ margin: 0 }}>Acknowledged</Tag>
+                                    ) : (
+                                      <button 
+                                        className="cds--btn cds--btn--sm cds--btn--primary"
+                                        onClick={() => handleAcknowledge(row.id)}
+                                        style={{ padding: '4px 12px', minHeight: '24px', fontSize: '12px' }}
+                                      >
+                                        Acknowledge
+                                      </button>
+                                    )}
                                     <button 
-                                      className="cds--btn cds--btn--sm cds--btn--primary"
-                                      onClick={() => handleAcknowledge(row.id)}
+                                      className="cds--btn cds--btn--sm cds--btn--ghost"
+                                      onClick={() => {
+                                        const alert = historyAlerts.find(a => a.id === row.id)
+                                        if (alert) handleExplainAlert(alert)
+                                      }}
                                       style={{ padding: '4px 12px', minHeight: '24px', fontSize: '12px' }}
+                                      disabled={explainingAlertId === row.id}
                                     >
-                                      Acknowledge
+                                      {explainingAlertId === row.id ? 'Thinking...' : 'AI Explain'}
                                     </button>
-                                  )}
+                                  </div>
                                 </TableCell>
                               )
                             }
@@ -162,6 +198,36 @@ export default function AlertsPage() {
           )}
         </Tile>
       </div>
+
+      {/* AI Explanation Modal */}
+      <Modal
+        open={!!alertExplanation}
+        onRequestClose={() => setAlertExplanation(null)}
+        passiveModal
+        modalHeading="AI Root Cause Analysis"
+      >
+        {alertExplanation && (
+          <div style={{ paddingBottom: '1rem' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <Tag type={severityTag(alertExplanation.alert.severity).type}>
+                {alertExplanation.alert.severity || 'INFO'}
+              </Tag>
+              <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>
+                {alertExplanation.alert.message || alertExplanation.alert.description}
+              </span>
+            </div>
+            
+            <div style={{ padding: '1.5rem', backgroundColor: 'var(--cds-layer-01)', border: '1px solid var(--cds-border-subtle-01)', borderLeft: '4px solid #8a3ffc' }}>
+              <h4 style={{ marginBottom: '1rem', color: '#8a3ffc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Idea size={20} /> AI Explanation
+              </h4>
+              <p style={{ color: 'var(--cds-text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                {alertExplanation.explanation}
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
     </main>
   )
 }
