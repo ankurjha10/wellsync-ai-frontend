@@ -6,10 +6,10 @@ import SockJS from 'sockjs-client'
 import { ToastNotification } from '@carbon/react'
 
 export type Well = { id: string; name?: string; wellCode?: string; wellName?: string; field?: string; status?: string; location?: string }
-export type Telemetry = Record<string, unknown> & { temperature?: number; viscosity?: number; pumpRpm?: number; rodLoad?: number; riskScore?: number; timestamp?: string }
+export type Telemetry = Record<string, unknown> & { temperature?: number; viscosity?: number; pumpRpm?: number; rodLoad?: number; riskScore?: number; timestamp?: string; pressure?: number; efficiency?: number }
 export type AlertItem = { id?: string; severity?: string; message?: string; description?: string; timestamp?: string }
 export type Recommendation = { id?: string; title?: string; message?: string; commandType?: string; recommendedValue?: number; unit?: string }
-export type ChartPoint = { time: string; pumpRpm: number; rodLoad: number; temperature: number; viscosity: number; risk: number }
+export type ChartPoint = { time: string; pumpRpm: number; rodLoad: number; temperature: number; viscosity: number; risk: number; pressure: number; efficiency: number }
 export type ToastMessage = { id: string; title: string; subtitle: string; caption: string; kind: 'error' | 'info' | 'success' | 'warning' }
 
 type DigitalTwinContextType = {
@@ -79,6 +79,8 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
           viscosity: readNumber(rawState, 'viscosity', 'viscosityCp'),
           pumpRpm: readNumber(rawState, 'pumpRpm', 'pumpRPM', 'rpm'),
           rodLoad: readNumber(rawState, 'rodLoad', 'rodLoadLbs'),
+          pressure: readNumber(rawState, 'pressure', 'pressurePsi'),
+          efficiency: readNumber(rawState, 'pumpEfficiencyPercent', 'efficiency'),
         }
         setTelemetry(state)
         setChartData([{ 
@@ -87,7 +89,9 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
           rodLoad: state.rodLoad || 0,
           temperature: state.temperature || 0,
           viscosity: state.viscosity || 0,
-          risk: readNumber(state, 'riskScore')
+          risk: readNumber(state, 'riskScore'),
+          pressure: state.pressure || 0,
+          efficiency: state.efficiency || 0,
         }])
       } catch (requestError) {
         if (!cancelled) {
@@ -119,6 +123,8 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
             viscosity: readNumber(raw, 'viscosity', 'viscosityCp'),
             pumpRpm: readNumber(raw, 'pumpRpm', 'pumpRPM', 'rpm'),
             rodLoad: readNumber(raw, 'rodLoad', 'rodLoadLbs'),
+            pressure: readNumber(raw, 'pressure', 'pressurePsi'),
+            efficiency: readNumber(raw, 'pumpEfficiencyPercent', 'efficiency'),
           }
           setTelemetry(state)
           setChartData((current) => [...current, { 
@@ -127,7 +133,9 @@ export function DigitalTwinProvider({ children }: { children: ReactNode }) {
             rodLoad: state.rodLoad || 0,
             temperature: state.temperature || 0,
             viscosity: state.viscosity || 0,
-            risk: readNumber(state, 'riskScore')
+            risk: readNumber(state, 'riskScore'),
+            pressure: state.pressure || 0,
+            efficiency: state.efficiency || 0,
           }].slice(-30))
         })
         client.subscribe(`/topic/alerts/${activeWell.id}`, (message) => {

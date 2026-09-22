@@ -6,6 +6,7 @@ import { ArrowLeft } from '@carbon/icons-react'
 import { Grid, Column, Tile, Tag } from '@carbon/react'
 import { useDigitalTwin, type Telemetry } from '@/components/digital-twin-provider'
 import { PumpSchematic } from '@/components/pump-schematic'
+import { TelemetryCharts } from '@/components/telemetry-charts'
 
 function readNumber(data: Telemetry, ...keys: string[]) {
   const value = keys.map((key) => data[key]).find((item) => typeof item === 'number')
@@ -80,14 +81,14 @@ export default function WellSchematicPage({ params }: { params: Promise<{ id: st
           </Column>
 
           <Column sm={4} md={8} lg={4}>
-            <Tile className="ws-panel" style={{ height: '100%' }}>
+            <Tile className="ws-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
               <div className="ws-panel-header">
                 <div>
                   <span className="ws-label">TELEMETRY</span>
                   <h2>Detailed Metrics</h2>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem', flexShrink: 0 }}>
                 {detailedMetrics.map((m, idx) => (
                   <div key={idx} style={{ padding: '1rem', background: 'var(--cds-layer-01)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: 'var(--cds-text-secondary)', fontSize: '0.875rem' }}>{m.label}</span>
@@ -97,6 +98,8 @@ export default function WellSchematicPage({ params }: { params: Promise<{ id: st
                   </div>
                 ))}
               </div>
+              
+              <TelemetryCharts />
             </Tile>
           </Column>
         </Grid>
